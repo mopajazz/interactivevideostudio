@@ -1,0 +1,12 @@
+{
+  "name": "@ivt/schema",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "test": "vitest run" },
+  "dependencies": { "dompurify": "^3.2.0" },
+  "devDependencies": { "jsdom": "^25.0.0", "vitest": "^2.1.0" }
+}
