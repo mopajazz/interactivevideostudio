@@ -177,6 +177,8 @@
   font: inherit;
 }
 .ivp-status { color: var(--ivp-on-dark-muted); font-size: 0.875rem; }
+/* After a fatal error the controls are inert and aria-disabled; dimmed so they don't look usable. */
+.ivp-bar.is-disabled > * { opacity: 0.45; cursor: not-allowed; }
 
 /* Errors */
 .ivp-error {

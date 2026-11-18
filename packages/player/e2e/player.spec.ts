@@ -26,7 +26,8 @@ test.describe('checkpoint card', () => {
     expect(await focusInDialog(page)).toBe(true);
     await advance(page, 2);
     expect(await now(page)).toBe(5);
-    await expect(page.locator('.ivp-announcer')).toContainText('Question');
+    await expect(dialog).toHaveAccessibleName('Question');
+    await expect(page.locator('.ivp-announcer')).toHaveText(/^Video paused\.\s*$/);
   });
 
   test('Tab and Shift+Tab never leave the open card', async ({ page }) => {

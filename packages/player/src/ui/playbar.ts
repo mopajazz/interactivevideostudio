@@ -100,6 +100,13 @@ export class Playbar {
 
   focusPlay() { this.play.focus(); }
 
+  /** After a fatal error: the controls can do nothing, so they leave the Tab order and say they are unavailable. */
+  disable() {
+    this.el.inert = true;
+    this.el.classList.add('is-disabled');
+    for (const c of [this.play, this.range, this.cc, this.rate]) c.setAttribute('aria-disabled', 'true');
+  }
+
   private showTime(t: number) {
     this.time.textContent = `${clock(t)} / ${clock(this.duration)}`;
     this.range.setAttribute('aria-valuetext', `${inWords(t)} of ${inWords(this.duration)}`);

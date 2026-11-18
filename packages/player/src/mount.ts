@@ -5,7 +5,7 @@ import { InteractionScheduler } from './scheduler';
 import { ScoreState, isQuestion, type Result } from './scoring';
 import { ScrubGuard } from './scrubGuard';
 import { Announcer } from './ui/announcer';
-import { KIND_LABEL, buildCard } from './ui/card';
+import { buildCard } from './ui/card';
 import { openModal } from './ui/dialog';
 import { h } from './ui/dom';
 import { buildErrorPanel } from './ui/errorPanel';
@@ -20,6 +20,11 @@ export type MountOptions = {
   initial?: SuspendState;
   /** Maps an image interaction's imageAssetId to a URL. Default: `assets/<id>`. */
   assetUrl?: (id: string) => string;
+  /**
+   * Called when the learner presses Escape while any card is open (e.g. so a host's preview can close). The player
+   * still closes only info cards itself; a scored question or the final screen stays until the learner acts.
+   */
+  onEscape?: () => void;
 };
 
 /** Seconds from the end that count as "at the end" (players stop a little short). */
@@ -49,6 +54,7 @@ export function mount(el: HTMLElement, project: Project, opts: MountOptions = {}
   let prev = -1; // so a checkpoint at time 0 is due on the first sample
   let queue: Interaction[] = [];
   let closeModal: (() => void) | null = null;
+  let failed = false; // a fatal player error: the playbar stays disabled from then on
   let reportedFloor = Math.floor(guard.furthest);
 
   const playbar = new Playbar({
@@ -109,16 +115,23 @@ export function mount(el: HTMLElement, project: Project, opts: MountOptions = {}
 
   const atEnd = () => duration() > 0 && adapter.getCurrentTime() >= duration() - END_SLACK;
 
-  const show = (card: HTMLElement, onEscape?: () => void) => {
+  /** Opens `card`; Escape closes it only if `dismiss` is given, and always tells the host (opts.onEscape). */
+  const show = (card: HTMLElement, dismiss?: () => void) => {
+    const onEscape = dismiss || opts.onEscape ? () => { dismiss?.(); opts.onEscape?.(); } : undefined;
     closeModal = openModal(layer, card, { background: [playbar.el], onEscape });
   };
-  const hide = () => { closeModal?.(); closeModal = null; };
+  const hide = () => {
+    closeModal?.(); // this makes the playbar live again...
+    closeModal = null;
+    if (failed) playbar.disable(); // ...unless the video can't play at all
+  };
 
   const showNext = () => {
     hide();
     const it = queue.shift();
     if (!it) {
       if (atEnd()) return showFinal();
+      if (failed) return stage.querySelector<HTMLElement>('.ivp-error a')?.focus();
       playbar.focusPlay();
       adapter.play();
       return;
@@ -130,7 +143,8 @@ export function mount(el: HTMLElement, project: Project, opts: MountOptions = {}
       onDone: showNext,
     });
     show(card.el, card.escapable ? showNext : undefined);
-    announcer.say(`Video paused. ${KIND_LABEL[it.type]}.`);
+    // The dialog's name already says what kind of card it is; only the pause needs saying.
+    announcer.say('Video paused.');
   };
 
   const showFinal = () => {
@@ -159,7 +173,7 @@ export function mount(el: HTMLElement, project: Project, opts: MountOptions = {}
         playbar.focusPlay();
       },
     }));
-    announcer.say('End of video.');
+    // Nothing to announce: focus moves into the dialog, whose name is "End of video".
   };
 
   let playing = false;
@@ -180,6 +194,9 @@ export function mount(el: HTMLElement, project: Project, opts: MountOptions = {}
     if (s === 'ended' && sample(duration())) showFinal();
   });
   adapter.on('error', (code: unknown) => {
+    failed = true;
+    adapter.pause();
+    playbar.disable();
     stage.querySelector('.ivp-error')?.remove();
     stage.append(buildErrorPanel(code, project.videoId));
   });

@@ -1,5 +1,6 @@
 // Test and manual-check page. ?adapter=fake swaps in FakeAdapter (exposed as window.__fake).
-// Other params: fixture=<name>, lock=1 (disable forward scrubbing), duration=<s>, initial=<json SuspendState>.
+// Other params: fixture=<name>, lock=1 (disable forward scrubbing), duration=<s>, initial=<json SuspendState>,
+// escape=1 (pass an onEscape callback).
 import { FakeAdapter } from '../src/fakeAdapter';
 import { mount } from '../src/mount';
 import { fixtures } from './fixtures';
@@ -22,6 +23,8 @@ const player = mount(document.getElementById('app')!, project, {
   onResult: (r) => w.__results?.push(r),
   onProgress: (s) => w.__progress?.push(s),
   initial: initial ? JSON.parse(initial) : undefined,
+  // ?escape=1: the host wants Escape (as the editor's preview does); calls are counted in window.__escapes.
+  onEscape: qs.get('escape') === '1' ? () => { w.__escapes = (w.__escapes ?? 0) + 1; } : undefined,
 });
 if (adapter) w.__player = player;
 // Stand-in for the YouTube iframe's own focusable title/logo links: keyboard focus must never reach it.
