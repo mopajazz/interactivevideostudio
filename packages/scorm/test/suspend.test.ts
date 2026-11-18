@@ -3,6 +3,7 @@ import type { SuspendState } from '@ivt/schema';
 import { encodeSuspend, decodeSuspend } from '../src/suspend';
 
 const ids = ['a', 'b', 'c'];
+const H = encodeSuspend({ furthest: 0, answers: {}, submitted: false }, ids).split('|').slice(1, 3).join('|');
 
 describe('suspend data', () => {
   it('round trips', () => {
@@ -28,7 +29,7 @@ describe('suspend data', () => {
     };
     const raw = encodeSuspend(s, ids);
     expect(decodeSuspend(raw, ids)).toEqual(s);
-    expect(raw.split('|')).toHaveLength(4);
+    expect(raw.split('|')).toHaveLength(6);
   });
 
   it('keys answers by index, not id', () => {
@@ -75,12 +76,29 @@ describe('suspend data', () => {
   });
 
   it('returns null for empty or malformed input', () => {
-    for (const bad of ['', 'garbage', 'v2|1|0|', 'v1|x|0|', 'v1|-1|0|', 'v1|1.5|0|', 'v1|1|2|', 'v1|1|0', 'v1|1|0|0', 'v1|1|0|x=a,', 'v1|1|0|0=%E0%A4%A,', 'v1|1|0|0=a'])
+    for (const bad of ['', 'garbage', `v2|${H}|1|0|`, `v1|${H}|x|0|`, `v1|${H}|-1|0|`, `v1|${H}|1.5|0|`, `v1|${H}|1|2|`, `v1|${H}|1|0`, `v1|${H}|1|0|0`, `v1|${H}|1|0|x=a,`, `v1|${H}|1|0|0=%E0%A4%A,`, `v1|${H}|1|0|0=a`])
       expect(decodeSuspend(bad, ids), bad).toBeNull();
   });
 
   it('ignores indexes beyond orderedIds', () => {
-    const raw = encodeSuspend({ furthest: 1, answers: { a: ['x'], c: ['y'] }, submitted: false }, ids);
-    expect(decodeSuspend(raw, ['a'])).toEqual({ furthest: 1, answers: { a: ['x'] }, submitted: false });
+    const raw = `v1|${H}|1|0|0=x,;9=y,`;
+    expect(decodeSuspend(raw, ids)).toEqual({ furthest: 1, answers: { a: ['x'] }, submitted: false });
+  });
+
+  describe('content fingerprint', () => {
+    const s: SuspendState = { furthest: 2, answers: { a: ['x'], c: ['z'] }, submitted: false };
+    const raw = encodeSuspend(s, ids);
+    it('round trips with identical ids', () => expect(decodeSuspend(raw, [...ids])).toEqual(s));
+    it('returns null for reordered ids', () => expect(decodeSuspend(raw, ['b', 'a', 'c'])).toBeNull());
+    it('returns null when an id is removed', () => expect(decodeSuspend(raw, ['a', 'c'])).toBeNull());
+    it('returns null when an id is renamed', () => expect(decodeSuspend(raw, ['a', 'b', 'd'])).toBeNull());
+    it('returns null for the old header-less format', () => {
+      expect(decodeSuspend('v1|2|0|0=x,;2=z,', ids)).toBeNull();
+      expect(decodeSuspend('v1|5|0|', ids)).toBeNull();
+    });
+    it('has a short header', () => {
+      expect(raw.split('|').slice(0, 5).join('|').length).toBeLessThan(40);
+      expect(raw.split('|')[2]).toMatch(/^[0-9a-f]{8}$/);
+    });
   });
 });
