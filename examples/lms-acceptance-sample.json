@@ -1,0 +1,148 @@
+{
+  "format": "ivt-project",
+  "project": {
+    "version": 1,
+    "title": "LMS acceptance sample",
+    "videoId": "M7lc1UVf-VE",
+    "duration": 300,
+    "settings": {
+      "disableForwardScrubbing": true,
+      "masteryPercent": 80
+    },
+    "interactions": [
+      {
+        "id": "i1",
+        "type": "text",
+        "time": 15,
+        "order": 1,
+        "promptHtml": "<p>Welcome. Four questions follow as the video plays. You need 80% to pass.</p>"
+      },
+      {
+        "id": "i2",
+        "type": "multipleChoice",
+        "time": 40,
+        "order": 2,
+        "promptHtml": "<p>Which of these is a colour?</p>",
+        "choices": [
+          {
+            "id": "c1",
+            "html": "Green",
+            "correct": true,
+            "feedbackHtml": "<p>Right: green is a colour.</p>"
+          },
+          {
+            "id": "c2",
+            "html": "Tuesday",
+            "correct": false,
+            "feedbackHtml": "<p>Tuesday is a day, not a colour.</p>"
+          },
+          {
+            "id": "c3",
+            "html": "Seven",
+            "correct": false,
+            "feedbackHtml": "<p>Seven is a number.</p>"
+          }
+        ]
+      },
+      {
+        "id": "i3",
+        "type": "image",
+        "time": 70,
+        "order": 3,
+        "promptHtml": "<p>A simple green circle on a pale background.</p>",
+        "imageAssetId": "LmsSample-01.png",
+        "alt": "A green circle on a pale green background",
+        "decorative": false
+      },
+      {
+        "id": "i4",
+        "type": "trueFalse",
+        "time": 100,
+        "order": 4,
+        "promptHtml": "<p>True or false: water freezes at 0 degrees Celsius.</p>",
+        "choices": [
+          {
+            "id": "true",
+            "html": "True",
+            "correct": true,
+            "feedbackHtml": "<p>Correct, at normal pressure.</p>"
+          },
+          {
+            "id": "false",
+            "html": "False",
+            "correct": false,
+            "feedbackHtml": "<p>It does freeze at 0 degrees Celsius at normal pressure.</p>"
+          }
+        ]
+      },
+      {
+        "id": "i5",
+        "type": "multipleChoice",
+        "time": 140,
+        "order": 5,
+        "promptHtml": "<p>Select both even numbers.</p>",
+        "choices": [
+          {
+            "id": "c1",
+            "html": "2",
+            "correct": true,
+            "feedbackHtml": "<p>2 is even.</p>"
+          },
+          {
+            "id": "c2",
+            "html": "3",
+            "correct": false,
+            "feedbackHtml": "<p>3 is odd.</p>"
+          },
+          {
+            "id": "c3",
+            "html": "4",
+            "correct": true,
+            "feedbackHtml": "<p>4 is even.</p>"
+          },
+          {
+            "id": "c4",
+            "html": "5",
+            "correct": false,
+            "feedbackHtml": "<p>5 is odd.</p>"
+          }
+        ]
+      },
+      {
+        "id": "i6",
+        "type": "link",
+        "time": 180,
+        "order": 6,
+        "promptHtml": "<p>Optional reading about this video player.</p>",
+        "url": "https://developers.google.com/youtube/iframe_api_reference"
+      },
+      {
+        "id": "i7",
+        "type": "trueFalse",
+        "time": 220,
+        "order": 7,
+        "promptHtml": "<p>True or false: the sun rises in the west.</p>",
+        "choices": [
+          {
+            "id": "true",
+            "html": "True",
+            "correct": false,
+            "feedbackHtml": "<p>The sun rises in the east.</p>"
+          },
+          {
+            "id": "false",
+            "html": "False",
+            "correct": true,
+            "feedbackHtml": "<p>Correct: it rises in the east.</p>"
+          }
+        ]
+      }
+    ]
+  },
+  "assets": {
+    "LmsSample-01.png": {
+      "type": "image/png",
+      "base64": "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAaElEQVR4nGN49uUVTRHDqAVDwwK9Bc64EKUW4DGaSGvwWUCk6fjtwGkBSabjsQO7BWSYjssOLBaQbTpWO+huAYWmY9oxasGoBaMWDMeigh6lKdl2YDVn4Go0kuzAY8JAtyooR6MWEEQAEvop6rTWmBUAAAAASUVORK5CYII="
+    }
+  }
+}

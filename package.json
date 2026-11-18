@@ -2,6 +2,9 @@
   "name": "interactive-video",
   "private": true,
   "type": "module",
-  "scripts": { "test": "pnpm -r test" },
+  "scripts": {
+    "test": "pnpm -r test",
+    "sample:package": "node scripts/build-sample-package.mjs"
+  },
   "devDependencies": { "typescript": "^5.6.0" }
 }
