@@ -108,14 +108,15 @@ test.describe('Step 1: Setup', () => {
     await expect.poll(() => page.evaluate(() => (window as any).__infoCalls.length)).toBe(2);
   });
 
-  test('Next moves focus to the Interactions heading; steps 2 and 3 are reachable placeholders', async ({ page }) => {
+  test('Next moves focus to the Interactions heading; steps 2 and 3 are reachable', async ({ page }) => {
     await completeSetup(page);
     await nextButton(page).click();
     const h2 = page.getByRole('heading', { level: 2, name: 'Interactions' });
     await expect(h2).toBeFocused();
     await expect(currentStep(page)).toContainText('Interactions');
-    await expect(page.getByText('Coming next')).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Add a checkpoint at the playhead' })).toBeVisible();
     await stepButton(page, /Scoring & export/).click();
+    await expect(page.getByText('Coming next')).toBeVisible();
     await expect(page.getByRole('heading', { level: 2, name: 'Scoring & export' })).toBeFocused();
     await stepButton(page, /Setup/).click();
     await expect(page.getByRole('heading', { level: 2, name: 'Setup' })).toBeFocused();

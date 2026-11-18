@@ -3,6 +3,7 @@ import { parseYouTubeId, type Project } from '@ivt/schema';
 import { formatDuration, isoDuration } from '../format';
 import { watchUrl } from '../project';
 import { fetchVideoInfo as realFetchVideoInfo, type FetchVideoInfo, type VideoInfo } from '../video/info';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { IconAlert, IconArrowRight, IconCheck, IconRefresh, IconSpinner } from '../ui/icons';
 
 type Check = 'idle' | 'checking' | 'ok' | 'embed-disabled' | 'unavailable';
@@ -27,7 +28,11 @@ export function Setup({ project, onChange, onNext, fetchVideoInfo = realFetchVid
   // A restored project whose duration is known was already checked; don't ask YouTube again.
   const verified = useRef(project.duration > 0 ? project.videoId : '');
   const inflight = useRef<{ key: string; promise: Promise<VideoInfo> } | null>(null);
+  const urlInput = useRef<HTMLInputElement>(null);
+  // A different video for a project that already has checkpoints, waiting for the author to confirm.
+  const [pendingId, setPendingId] = useState<string | null>(null);
   const { videoId } = project;
+  const checkpoints = project.interactions.length;
 
   useEffect(() => {
     if (!videoId) return setCheck('idle');
@@ -47,13 +52,30 @@ export function Setup({ project, onChange, onNext, fetchVideoInfo = realFetchVid
     return () => { live = false; };
   }, [videoId, attempt, fetchVideoInfo, onChange]);
 
+  const useVideo = (id: string) => onChange((p) => ({ ...p, videoId: id, duration: 0 }));
   const setUrl = (value: string) => {
     setText(value);
     const id = parseYouTubeId(value) ?? '';
-    if (id !== videoId) onChange((p) => ({ ...p, videoId: id, duration: 0 }));
+    if (id === videoId) return;
+    // With checkpoints, only a complete, different link changes the video, and only once confirmed.
+    if (!checkpoints) useVideo(id);
+    else if (id) setPendingId(id);
   };
+  const closeConfirm = (change: boolean) => {
+    if (change && pendingId) useVideo(pendingId);
+    else setText(videoId ? watchUrl(videoId) : '');
+    setPendingId(null);
+    refocus.current = true;
+  };
+  // ConfirmDialog leaves focus to its caller: back to the link once the dialog has closed.
+  const refocus = useRef(false);
+  useEffect(() => {
+    if (pendingId || !refocus.current) return;
+    refocus.current = false;
+    urlInput.current?.focus();
+  });
 
-  const badLink = touched && text.trim() !== '' && !videoId;
+  const badLink = touched && text.trim() !== '' && !parseYouTubeId(text);
   const urlInvalid = badLink || check === 'embed-disabled' || check === 'unavailable';
   const titleMissing = !project.title.trim();
   const reason = nextReason(!videoId, check, titleMissing);
@@ -67,6 +89,7 @@ export function Setup({ project, onChange, onNext, fetchVideoInfo = realFetchVid
         <label htmlFor="setup-url" className="field-label">YouTube link</label>
         <p id="setup-url-hint" className="field-hint">Paste the video's address, like https://www.youtube.com/watch?v=…</p>
         <input
+          ref={urlInput}
           id="setup-url"
           className="input"
           type="url"
@@ -120,6 +143,16 @@ export function Setup({ project, onChange, onNext, fetchVideoInfo = realFetchVid
           Next: Interactions<IconArrowRight />
         </button>
       </div>
+      {pendingId && (
+        <ConfirmDialog title="Change the video?" confirmLabel="Change video" onConfirm={() => closeConfirm(true)} onCancel={() => closeConfirm(false)}>
+          <p>
+            {checkpoints === 1
+              ? 'Your 1 checkpoint stays at its time in the new video, so check that it still fits.'
+              : `Your ${checkpoints} checkpoints stay at their times in the new video, so check that each one still fits.`}
+            {' '}To keep the current video, choose Cancel.
+          </p>
+        </ConfirmDialog>
+      )}
     </section>
   );
 }

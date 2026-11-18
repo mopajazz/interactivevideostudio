@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Project } from '@ivt/schema';
 import { newProject, isSetupComplete } from '../project';
 import { createAutosave } from './autosave';
-import { loadSession, replaceProject, saveProject, saveStep, type Step } from './projectStore';
+import { deleteAsset, loadSession, putAsset, replaceProject, saveProject, saveStep, type Step } from './projectStore';
 
 /** 'unavailable': IndexedDB failed at startup, so nothing is saved; everything else keeps working in memory. */
 export type SaveStatus = 'saved' | 'saving' | 'error' | 'unavailable';
@@ -106,5 +106,27 @@ export function usePersistence() {
     setState({ project, step: 1, assets });
   }, [available, autosave, schedule]);
 
-  return { state, status, loadIssue, hasBackup, setHasBackup, updateProject, setStep, replace };
+  /**
+   * Adds an image to the in-memory assets (which export reads) and stores it straight away. A storage failure
+   * shows the save error; the image stays usable in memory and in an export.
+   */
+  const addAsset = useCallback(async (id: string, blob: Blob) => {
+    setState((s) => (s ? { ...s, assets: new Map(s.assets).set(id, blob) } : s));
+    if (!available) return;
+    await putAsset(id, blob).catch(() => setStatus('error'));
+  }, [available]);
+
+  /** Drops an image no interaction uses any more, from memory and from storage. */
+  const removeAsset = useCallback(async (id: string) => {
+    setState((s) => {
+      if (!s?.assets.has(id)) return s;
+      const assets = new Map(s.assets);
+      assets.delete(id);
+      return { ...s, assets };
+    });
+    if (!available) return;
+    await deleteAsset(id).catch(() => setStatus('error'));
+  }, [available]);
+
+  return { state, status, loadIssue, hasBackup, setHasBackup, updateProject, setStep, replace, addAsset, removeAsset };
 }

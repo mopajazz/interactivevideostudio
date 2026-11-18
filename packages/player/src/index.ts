@@ -8,3 +8,4 @@ export type { Result } from './scoring';
 export { mount } from './mount';
 export type { MountOptions } from './mount';
 export { Announcer } from './ui/announcer';
+export { clock, inWords } from './ui/playbar';

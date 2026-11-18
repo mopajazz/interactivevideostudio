@@ -67,3 +67,34 @@ export async function completeSetup(page: Page, title = 'Photosynthesis basics')
 
 /** Waits until the autosave has written the latest change. */
 export const saved = (page: Page) => expect(page.getByTestId('save-status')).toHaveText('All changes saved in this browser');
+
+/** Opens the editor, completes Step 1 (212 s video) and goes to Step 2. */
+export async function openInteractions(page: Page) {
+  await openEditor(page);
+  await completeSetup(page);
+  await nextButton(page).click();
+  await expect(page.getByRole('heading', { level: 2, name: 'Interactions' })).toBeFocused();
+}
+
+export const toolGroup = (page: Page) => page.getByRole('group', { name: 'Add a checkpoint at the playhead' });
+export const tool = (page: Page, name: string) => toolGroup(page).getByRole('button', { name, exact: true });
+export const playhead = (page: Page) => page.getByRole('slider', { name: 'Playhead' });
+export const timeline = (page: Page) => page.getByRole('group', { name: 'Timeline' });
+export const nodes = (page: Page) => timeline(page).getByRole('button');
+export const drawer = (page: Page) => page.getByRole('region', { name: /at \d+:\d\d$/ });
+
+/** Moves the author's playhead with the slider, as a keyboard or pointer user would. */
+export const seek = (page: Page, seconds: number) => playhead(page).fill(String(seconds));
+
+/** Adds a checkpoint of the given tool at `seconds`. */
+export async function addAt(page: Page, name: string, seconds: number) {
+  await seek(page, seconds);
+  await tool(page, name).click();
+}
+
+/** A 2x2 PNG, as a file the image picker accepts. */
+export const PNG = {
+  name: 'leaf.png',
+  mimeType: 'image/png',
+  buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAEElEQVR4nGNgaGD4D8YwBgAw9AX9i91uTAAAAABJRU5ErkJggg==', 'base64'),
+};

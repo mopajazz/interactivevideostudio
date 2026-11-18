@@ -26,3 +26,14 @@ export const IconTrueFalse = () => <Svg><path d="M3.5 12l3 3 5-6" /><path d="M14
 export const IconText = () => <Svg><path d="M5 6h14M12 6v13M9 19h6" /></Svg>;
 export const IconLink = () => <Svg><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" /><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" /></Svg>;
 export const IconImage = () => <Svg><rect x="3.5" y="5" width="17" height="14" rx="2.5" /><circle cx="9" cy="10" r="1.75" /><path d="M20.5 16l-5-5-8.5 8" /></Svg>;
+
+// Step 2 controls.
+export const IconPause = () => <Svg><path d="M8 5v14M16 5v14" /></Svg>;
+export const IconEye = () => <Svg><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" /><circle cx="12" cy="12" r="2.75" /></Svg>;
+export const IconClose = () => <Svg><path d="M6 6l12 12M18 6L6 18" /></Svg>;
+export const IconTrash = () => <Svg><path d="M4.5 7h15M10 11v6M14 11v6M6.5 7l1 12.5h9l1-12.5M9.5 7V4.5h5V7" /></Svg>;
+export const IconPlayhead = () => <Svg><path d="M12 3v18M8 3h8l-4 4z" /></Svg>;
+export const IconBold = () => <Svg><path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z" /></Svg>;
+export const IconItalic = () => <Svg><path d="M14 5h-4M14 19h-4M13.5 5l-3 14" /></Svg>;
+export const IconBulletList = () => <Svg><path d="M10 7h10M10 12h10M10 17h10" /><circle cx="5" cy="7" r="1" fill="currentColor" /><circle cx="5" cy="12" r="1" fill="currentColor" /><circle cx="5" cy="17" r="1" fill="currentColor" /></Svg>;
+export const IconNumberList = () => <Svg><path d="M10 7h10M10 12h10M10 17h10M4.5 5.5l1.5-1v5M4 14.5a1.5 1.5 0 0 1 3 .5c0 1-3 2.5-3 3.5h3" /></Svg>;

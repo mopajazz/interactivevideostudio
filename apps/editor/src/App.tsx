@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Project } from '@ivt/schema';
 import { ComingNext } from './steps/ComingNext';
+import { Interactions } from './steps/Interactions';
 import { Setup } from './steps/Setup';
 import { isBlank, isSetupComplete, newProject } from './project';
 import { discardCorruptBackup, loadCorruptBackup, type Step } from './storage/projectStore';
@@ -10,6 +11,7 @@ import { ProjectMenu } from './ui/ProjectMenu';
 import { ConfirmDialog } from './ui/ConfirmDialog';
 import { StepIndicator } from './ui/StepIndicator';
 import { IconPlay } from './ui/icons';
+import { youTubeAdapters, type VideoAdapters } from './video/adapters';
 import type { FetchVideoInfo } from './video/info';
 
 type Pending =
@@ -23,8 +25,8 @@ const LOAD_NOTICE: Record<Exclude<LoadIssue, null>, string> = {
 };
 const titleOf = (p: Project) => p.title || 'Untitled project';
 
-export function App({ fetchVideoInfo }: { fetchVideoInfo?: FetchVideoInfo }) {
-  const { state, status, loadIssue, hasBackup, setHasBackup, updateProject, setStep, replace } = usePersistence();
+export function App({ fetchVideoInfo, adapters = youTubeAdapters }: { fetchVideoInfo?: FetchVideoInfo; adapters?: VideoAdapters }) {
+  const { state, status, loadIssue, hasBackup, setHasBackup, updateProject, setStep, replace, addAsset, removeAsset } = usePersistence();
   const [pending, setPending] = useState<Pending | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
   // Bumped on start-new/import so Setup starts with fresh field state.
@@ -145,8 +147,19 @@ export function App({ fetchVideoInfo }: { fetchVideoInfo?: FetchVideoInfo }) {
       <main id="main" tabIndex={-1} className="app-main">
         {shown === 1 ? (
           <Setup key={session} project={project} onChange={updateProject} onNext={() => go(2)} fetchVideoInfo={fetchVideoInfo} />
+        ) : shown === 2 ? (
+          <Interactions
+            key={session}
+            project={project}
+            onChange={updateProject}
+            assets={state.assets}
+            addAsset={addAsset}
+            removeAsset={removeAsset}
+            adapters={adapters}
+            onGo={go}
+          />
         ) : (
-          <ComingNext key={shown} step={shown} onGo={go} />
+          <ComingNext onGo={go} />
         )}
       </main>
       {pending?.kind === 'new' && (
