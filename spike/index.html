@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YouTube player spike (throwaway)</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 16px; background: #111; color: #eee; }
+  #wrap { position: relative; max-width: 800px; aspect-ratio: 16/9; background: #000; }
+  #wrap iframe, #player { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #overlay { position: absolute; inset: 0; background: rgba(0,0,0,.6); display: none;
+             align-items: center; justify-content: center; font-size: 1.5rem; }
+  #overlay.on { display: flex; }
+  #bar { max-width: 800px; display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+  #seek { flex: 1; }
+  button { padding: 6px 12px; font: inherit; }
+  #log { font: 12px monospace; margin-top: 8px; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="player"></div>
+  <div id="overlay" role="dialog" aria-label="Paused overlay">Paused: question overlay goes here</div>
+</div>
+<div id="bar">
+  <button id="play" aria-label="Play">Play</button>
+  <input id="seek" type="range" min="0" max="1000" value="0" aria-label="Progress">
+  <span id="time">0:00</span>
+  <button id="cc" aria-pressed="false">Captions: off</button>
+</div>
+<div id="log"></div>
+<script>
+// Config: ?v=<videoId>  ?stub=1 (fake IFrame API for headless logic checks)  ?at=<seconds> overlay pause time
+var qs = new URLSearchParams(location.search);
+var VIDEO_ID = qs.get('v') || 'M7lc1UVf-VE'; // YouTube's public IFrame API demo video
+var OVERLAY_AT = Number(qs.get('at') || 5);
+var SLACK = 1.5;        // seconds of forward drift tolerated before snapping back
+var furthest = 0, player, ccOn = false, overlayShown = false, ready = false;
+var $ = function (id) { return document.getElementById(id); };
+function log(m) { $('log').textContent += m + '\n'; }
+function fmt(s) { s = Math.floor(s); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+
+function boot() {
+  player = new YT.Player('player', {
+    videoId: VIDEO_ID,
+    playerVars: { controls: 0, disablekb: 1, modestbranding: 1, rel: 0, playsinline: 1, cc_load_policy: 0 },
+    events: {
+      onReady: function () { ready = true; log('ready'); setInterval(tick, 250); },
+      onStateChange: onState
+    }
+  });
+}
+function onState(e) {
+  var playing = e.data === 1;
+  $('play').textContent = playing ? 'Pause' : 'Play';
+  $('play').setAttribute('aria-label', playing ? 'Pause' : 'Play');
+  // overlay on pause (2); hide when playing
+  overlayShown = e.data === 2;
+  $('overlay').classList.toggle('on', overlayShown);
+}
+function tick() {
+  var t = player.getCurrentTime(), d = player.getDuration() || 1;
+  if (t > furthest + SLACK) {           // scrub guard: forward seek snaps back
+    log('guard: snap ' + t.toFixed(1) + ' -> ' + furthest.toFixed(1));
+    player.seekTo(furthest, true);
+    t = furthest;
+  } else if (t > furthest) furthest = t;
+  $('seek').value = Math.round(t / d * 1000);
+  $('time').textContent = fmt(t);
+  if (player.getPlayerState() === 1 && furthest >= OVERLAY_AT && !tick.fired) {
+    tick.fired = true; player.pauseVideo(); log('overlay at ' + OVERLAY_AT);
+  }
+}
+$('play').onclick = function () {
+  if (player.getPlayerState() === 1) player.pauseVideo(); else player.playVideo();
+};
+$('seek').oninput = function () {
+  player.seekTo(this.value / 1000 * (player.getDuration() || 1), true);
+};
+$('cc').onclick = function () {
+  ccOn = !ccOn;
+  if (ccOn) { player.loadModule('captions'); player.setOption('captions', 'track', { languageCode: 'en' }); }
+  else player.unloadModule('captions');
+  this.textContent = 'Captions: ' + (ccOn ? 'on' : 'off');
+  this.setAttribute('aria-pressed', String(ccOn));
+};
+
+if (qs.get('stub') === '1') {
+  // Minimal fake of the IFrame API surface used above. Not the real player.
+  window.YT = { Player: function (el, o) {
+    var st = { t: 0, state: -1, dur: 60, calls: [] }, me = this, timer;
+    window.__stub = st;
+    function set(s) { st.state = s; o.events.onStateChange({ data: s }); }
+    me.playVideo = function () { st.calls.push('play'); set(1); clearInterval(timer);
+      timer = setInterval(function () { if (st.state === 1) st.t += 0.25; }, 250); };
+    me.pauseVideo = function () { st.calls.push('pause'); set(2); };
+    me.seekTo = function (s) { st.calls.push('seekTo:' + s); st.t = s; };
+    me.getCurrentTime = function () { return st.t; };
+    me.getDuration = function () { return st.dur; };
+    me.getPlayerState = function () { return st.state; };
+    me.loadModule = function (m) { st.calls.push('loadModule:' + m); };
+    me.unloadModule = function (m) { st.calls.push('unloadModule:' + m); };
+    me.setOption = function (m, k, v) { st.calls.push('setOption:' + m + ':' + k + ':' + JSON.stringify(v)); };
+    setTimeout(o.events.onReady, 0);
+  } };
+  boot();
+} else {
+  window.onYouTubeIframeAPIReady = boot;
+  var s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(s);
+}
+</script>
+</body>
+</html>
