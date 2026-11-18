@@ -1,0 +1,135 @@
+/*
+ * Editor design tokens. Same palette family as the player (packages/player/src/styles.css).
+ * Every ratio below is WCAG 2.x contrast, measured against the background named next to it.
+ * Text needs 4.5:1, control borders and focus rings 3:1. "decorative" = no requirement (never the only cue).
+ */
+:root {
+  color-scheme: light dark;
+
+  /* Surfaces and text (light) */
+  --c-bg: #f5f6fa;
+  --c-surface: #ffffff;
+  --c-surface-sunk: #eef1f7;
+  --c-ink: #1b1f27;             /* 16.5:1 on --c-surface, 15.3:1 on --c-bg */
+  --c-ink-muted: #4a5263;       /* 7.8:1 on --c-surface, 7.3:1 on --c-bg, 6.9:1 on --c-surface-sunk */
+  --c-line: #767f91;            /* 4.0:1 on --c-surface, 3.7:1 on --c-bg, 3.6:1 on --c-surface-sunk: control borders */
+  --c-line-soft: #dde1ea;       /* decorative: card outlines (cards also have a shadow) */
+
+  /* Primary action */
+  --c-primary: #2747d6;         /* --c-on-primary on it 7.1:1; as text 7.1:1 on --c-surface, 6.3:1 on --c-primary-tint */
+  --c-primary-edge: #1a2f91;    /* decorative: 3D bottom edge */
+  --c-primary-tint: #eef1fd;    /* --c-ink on it 14.7:1 */
+  --c-on-primary: #ffffff;
+
+  /* Danger (destructive confirm) */
+  --c-danger: #b3261e;          /* --c-on-danger on it 6.5:1 */
+  --c-danger-edge: #7a1712;     /* decorative */
+  --c-on-danger: #ffffff;
+
+  /* Status text, always paired with an icon and words */
+  --c-ok-ink: #0b5a30;          /* 8.3:1 on --c-surface, 7.3:1 on --c-ok-bg */
+  --c-ok-bg: #e5f4eb;
+  --c-error-ink: #9b1419;       /* 8.4:1 on --c-surface, 7.1:1 on --c-error-bg */
+  --c-error-bg: #fbe8e9;
+
+  /* Focus ring: 3px outline, offset so it sits on the surface around the control */
+  --c-focus: #2747d6;           /* 7.1:1 on --c-surface, 6.6:1 on --c-bg, 6.2:1 on --c-surface-sunk */
+
+  /*
+   * Interaction tools. Light theme: deep fills with white text. Tints are card backgrounds, with -ink as text on them.
+   * -edge is the decorative 3D bottom edge.
+   */
+  --c-on-tool: #ffffff;
+  --tool-quiz: #1e7a3c;         /* white 5.4:1; as text 5.0:1 on --c-bg */
+  --tool-quiz-edge: #125226;
+  --tool-quiz-tint: #e3f5e8;    /* --tool-quiz as text on it 4.7:1 */
+  --tool-truefalse: #1f62c9;    /* white 5.8:1 */
+  --tool-truefalse-edge: #143f84;
+  --tool-truefalse-tint: #e4eefc; /* --tool-truefalse as text on it 4.9:1 */
+  --tool-text: #6d3fc9;         /* white 6.6:1 */
+  --tool-text-edge: #472686;
+  --tool-text-tint: #efe8fc;    /* --tool-text as text on it 5.5:1 */
+  --tool-link: #b04a00;         /* white 5.5:1; as text 5.1:1 on --c-bg */
+  --tool-link-edge: #733000;
+  --tool-link-tint: #fdeedf;    /* --tool-link as text on it 4.8:1 */
+  --tool-image: #c2185b;        /* white 5.9:1 */
+  --tool-image-edge: #800e3b;
+  --tool-image-tint: #fce4ee;   /* --tool-image as text on it 4.9:1 */
+
+  /* Shape, size, motion */
+  --radius-card: 20px;
+  --radius-control: 14px;
+  --target: 44px;               /* WCAG 2.5.8 asks 24px; we keep 44px everywhere */
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.06), 0 8px 24px rgba(16, 24, 40, 0.08);
+  --press-depth: 4px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 120ms;
+  --dur-medium: 240ms;
+  --font: ui-rounded, "SF Pro Rounded", "Nunito", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Dark theme: lighter fills with near-black text, so each pair keeps its ratio. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --c-bg: #0f1218;
+    --c-surface: #181c25;
+    --c-surface-sunk: #222836;
+    --c-ink: #eef1f7;           /* 15.1:1 on --c-surface, 16.6:1 on --c-bg, 13.0:1 on --c-surface-sunk */
+    --c-ink-muted: #b6becd;     /* 9.1:1 on --c-surface, 10.0:1 on --c-bg, 7.9:1 on --c-surface-sunk */
+    --c-line: #8b94a7;          /* 5.6:1 on --c-surface, 6.2:1 on --c-bg, 4.8:1 on --c-surface-sunk */
+    --c-line-soft: #2c3342;     /* decorative */
+
+    --c-primary: #8ea6ff;       /* --c-on-primary on it 8.4:1; as text 7.4:1 on --c-surface, 6.5:1 on --c-primary-tint */
+    --c-primary-edge: #4e67c9;  /* decorative */
+    --c-primary-tint: #1e2540;  /* --c-ink on it 13.3:1 */
+    --c-on-primary: #0b0d12;
+
+    --c-danger: #ff8a80;        /* --c-on-danger on it 8.5:1 */
+    --c-danger-edge: #b3463d;   /* decorative */
+    --c-on-danger: #0b0d12;
+
+    --c-ok-ink: #7fe0a0;        /* 10.6:1 on --c-surface, 8.9:1 on --c-ok-bg */
+    --c-ok-bg: #12301e;
+    --c-error-ink: #ffa3a3;     /* 9.0:1 on --c-surface, 8.5:1 on --c-error-bg */
+    --c-error-bg: #3a1518;
+
+    --c-focus: #ffc94d;         /* 11.1:1 on --c-surface, 12.2:1 on --c-bg, 9.6:1 on --c-surface-sunk */
+
+    --c-on-tool: #0b0d12;
+    --tool-quiz: #4cc46f;       /* --c-on-tool 8.7:1; as text 7.7:1 on --c-surface */
+    --tool-quiz-edge: #2a8045;
+    --tool-quiz-tint: #16301f;  /* --tool-quiz-ink on it 8.9:1 */
+    --tool-truefalse: #6ea8ff;  /* --c-on-tool 8.1:1 */
+    --tool-truefalse-edge: #3b6dc0;
+    --tool-truefalse-tint: #17263f; /* --tool-truefalse-ink on it 8.5:1 */
+    --tool-text: #b593ff;       /* --c-on-tool 7.9:1 */
+    --tool-text-edge: #7552c4;
+    --tool-text-tint: #261c3d;  /* --tool-text-ink on it 8.5:1 */
+    --tool-link: #ff9d4d;       /* --c-on-tool 9.4:1 */
+    --tool-link-edge: #b8601a;
+    --tool-link-tint: #3a2412;  /* --tool-link-ink on it 8.6:1 */
+    --tool-image: #ff7aa8;      /* --c-on-tool 8.0:1 */
+    --tool-image-edge: #b8456d;
+    --tool-image-tint: #3a1626; /* --tool-image-ink on it 8.1:1 */
+
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+  }
+}
+
+/* Text on a tool tint. Light: the tool color itself. Dark: a lighter shade of it. */
+:root {
+  --tool-quiz-ink: var(--tool-quiz);
+  --tool-truefalse-ink: var(--tool-truefalse);
+  --tool-text-ink: var(--tool-text);
+  --tool-link-ink: var(--tool-link);
+  --tool-image-ink: var(--tool-image);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --tool-quiz-ink: #7fe0a0;      /* 8.9:1 on --tool-quiz-tint */
+    --tool-truefalse-ink: #9cc4ff; /* 8.5:1 on --tool-truefalse-tint */
+    --tool-text-ink: #c9b0ff;      /* 8.5:1 on --tool-text-tint */
+    --tool-link-ink: #ffb877;      /* 8.6:1 on --tool-link-tint */
+    --tool-image-ink: #ff9cc0;     /* 8.1:1 on --tool-image-tint */
+  }
+}
