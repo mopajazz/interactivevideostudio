@@ -56,6 +56,8 @@ test('JSON export then import restores the project and its images', async ({ pag
     await store.putAsset('Ab3_dE-fGh1J.png', new Blob([new Uint8Array([137, 80, 78, 71, 1, 2, 3])], { type: 'image/png' }));
   });
   await saved(page);
+  await page.reload(); // the image was stored behind the app's back (no image UI until Task 8); load it
+  await expect(titleField(page)).toHaveValue('Round trip');
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Export JSON' }).click();
   const file = await download;
@@ -107,9 +109,14 @@ test('importing a malformed file shows a readable, announced error and changes n
   const path = info.outputPath('broken.json');
   await writeFile(path, '{"project": ');
   await completeSetup(page);
+  const region = page.getByTestId('notice');
+  await expect(region).toBeAttached();
+  await expect(region).toHaveAttribute('role', 'status');
+  expect(await region.evaluate((el) => getComputedStyle(el).display)).not.toBe('none');
+  await expect(region).toBeEmpty();
   const chooser = page.waitForEvent('filechooser');
   await page.getByRole('button', { name: 'Import JSON' }).click();
   await (await chooser).setFiles(path);
-  await expect(page.getByRole('status').filter({ hasText: "This file isn't valid JSON, so it can't be opened as a project." })).toBeVisible();
+  await expect(region).toHaveText("This file isn't valid JSON, so it can't be opened as a project.");
   await expect(titleField(page)).toHaveValue('Photosynthesis basics');
 });

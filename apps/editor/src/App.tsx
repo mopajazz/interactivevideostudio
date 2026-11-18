@@ -3,8 +3,9 @@ import type { Project } from '@ivt/schema';
 import { ComingNext } from './steps/ComingNext';
 import { Setup } from './steps/Setup';
 import { isBlank, isSetupComplete, newProject } from './project';
-import { clearAll, putAsset, type Step } from './storage/projectStore';
-import { usePersistence } from './storage/usePersistence';
+import { discardCorruptBackup, loadCorruptBackup, type Step } from './storage/projectStore';
+import { usePersistence, type LoadIssue } from './storage/usePersistence';
+import { downloadBlob } from './ui/download';
 import { ProjectMenu } from './ui/ProjectMenu';
 import { ConfirmDialog } from './ui/ConfirmDialog';
 import { StepIndicator } from './ui/StepIndicator';
@@ -16,8 +17,14 @@ type Pending =
   | { kind: 'import'; project: Project; assets: Map<string, Blob> };
 type Notice = { tone: 'ok' | 'error'; text: string } | null;
 
+const LOAD_NOTICE: Record<Exclude<LoadIssue, null>, string> = {
+  corrupt: "Your saved project couldn't be read, so a new one was started. The damaged data is kept in this browser.",
+  unavailable: 'Saving is unavailable in this browser; export your project to keep it',
+};
+const titleOf = (p: Project) => p.title || 'Untitled project';
+
 export function App({ fetchVideoInfo }: { fetchVideoInfo?: FetchVideoInfo }) {
-  const { state, status, updateProject, setStep, replace } = usePersistence();
+  const { state, status, loadIssue, hasBackup, setHasBackup, updateProject, setStep, replace } = usePersistence();
   const [pending, setPending] = useState<Pending | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
   // Bumped on start-new/import so Setup starts with fresh field state.
@@ -34,6 +41,12 @@ export function App({ fetchVideoInfo }: { fetchVideoInfo?: FetchVideoInfo }) {
     (target === 'heading' ? document.getElementById('step-heading') : target)?.focus();
   });
 
+  // Announce what startup found only after the (empty) live region is on screen, so screen readers hear it.
+  const loaded = !!state;
+  useEffect(() => {
+    if (loaded && loadIssue) setNotice({ tone: 'error', text: LOAD_NOTICE[loadIssue] });
+  }, [loaded, loadIssue]);
+
   if (!state) return <p className="loading" role="status">Loading your project…</p>;
   const { project, step } = state;
   const unlocked = isSetupComplete(project);
@@ -44,13 +57,21 @@ export function App({ fetchVideoInfo }: { fetchVideoInfo?: FetchVideoInfo }) {
     setStep(s);
   };
 
-  const apply = async (p: Project, assets: Map<string, Blob>) => {
-    await replace(p, async () => {
-      await clearAll();
-      for (const [id, blob] of assets) await putAsset(id, blob);
-    });
+  /** Replaces the project; on a storage failure the previous project stays and the author is told why. */
+  const apply = async (p: Project, assets: Map<string, Blob>, failure: string): Promise<boolean> => {
+    try {
+      await replace(p, assets);
+    } catch {
+      setNotice({ tone: 'error', text: `${failure}: it could not be saved in this browser. Your current project is unchanged.` });
+      return false;
+    }
     setSession((n) => n + 1);
     focusAfter.current = 'heading';
+    return true;
+  };
+
+  const open = async (p: Project, assets: Map<string, Blob>) => {
+    if (await apply(p, assets, `Couldn't open "${titleOf(p)}"`)) setNotice({ tone: 'ok', text: `Opened "${titleOf(p)}".` });
   };
 
   const closeDialog = (focusTo?: 'heading') => {
@@ -62,21 +83,30 @@ export function App({ fetchVideoInfo }: { fetchVideoInfo?: FetchVideoInfo }) {
     if (!pending) return;
     const p = pending;
     closeDialog('heading');
-    if (p.kind === 'new') {
-      await apply(newProject(), new Map());
-      setNotice({ tone: 'ok', text: 'Started a new project.' });
-    } else {
-      await apply(p.project, p.assets);
-      setNotice({ tone: 'ok', text: `Opened "${p.project.title || 'Untitled project'}".` });
-    }
+    if (p.kind === 'import') return open(p.project, p.assets);
+    if (await apply(newProject(), new Map(), "Couldn't start a new project")) setNotice({ tone: 'ok', text: 'Started a new project.' });
   };
 
   const onImported = (p: Project, assets: Map<string, Blob>) => {
-    if (isBlank(project)) {
-      void apply(p, assets).then(() => setNotice({ tone: 'ok', text: `Opened "${p.title || 'Untitled project'}".` }));
-    } else {
-      returnFocus.current = document.activeElement as HTMLElement | null;
-      setPending({ kind: 'import', project: p, assets });
+    if (isBlank(project)) return void open(p, assets);
+    returnFocus.current = document.activeElement as HTMLElement | null;
+    setPending({ kind: 'import', project: p, assets });
+  };
+
+  const downloadBackup = async () => {
+    try {
+      downloadBlob(new Blob([JSON.stringify(await loadCorruptBackup(), null, 2)], { type: 'application/json' }), 'damaged-project.json');
+    } catch {
+      setNotice({ tone: 'error', text: "Couldn't read the damaged data from this browser." });
+    }
+  };
+  const discardBackup = async () => {
+    try {
+      await discardCorruptBackup();
+      setHasBackup(false);
+      setNotice({ tone: 'ok', text: 'Discarded the damaged data.' });
+    } catch {
+      setNotice({ tone: 'error', text: "Couldn't discard the damaged data from this browser." });
     }
   };
 
@@ -90,6 +120,7 @@ export function App({ fetchVideoInfo }: { fetchVideoInfo?: FetchVideoInfo }) {
         </div>
         <ProjectMenu
           project={project}
+          assets={state.assets}
           saveStatus={status}
           onImported={onImported}
           onNotice={setNotice}
@@ -100,7 +131,17 @@ export function App({ fetchVideoInfo }: { fetchVideoInfo?: FetchVideoInfo }) {
         />
       </header>
       <StepIndicator current={shown} unlocked={unlocked} onGo={go} />
-      <div role="status" className={`notice${notice ? ` notice-${notice.tone}` : ''}`}>{notice?.text}</div>
+      {/* Always rendered (never display:none), so messages inserted later are announced. */}
+      <div role="status" data-testid="notice" className={`notice${notice ? ` notice-${notice.tone}` : ''}`}>{notice?.text}</div>
+      {hasBackup && (
+        <div className="recovery">
+          <p>Damaged project data from an earlier session is kept in this browser.</p>
+          <div className="recovery-actions">
+            <button type="button" className="btn btn-secondary btn-small" onClick={() => void downloadBackup()}>Download damaged data</button>
+            <button type="button" className="btn btn-secondary btn-small" onClick={() => void discardBackup()}>Discard damaged data</button>
+          </div>
+        </div>
+      )}
       <main id="main" tabIndex={-1} className="app-main">
         {shown === 1 ? (
           <Setup key={session} project={project} onChange={updateProject} onNext={() => go(2)} fetchVideoInfo={fetchVideoInfo} />

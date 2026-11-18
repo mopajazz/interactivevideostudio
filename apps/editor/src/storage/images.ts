@@ -30,7 +30,7 @@ function encode(canvas: Surface['canvas'], type: string, quality: number): Promi
 export async function compressImage(file: File, maxEdge = 1600, maxBytes = 800 * 1024): Promise<Blob> {
   let bitmap: ImageBitmap;
   try {
-    bitmap = await createImageBitmap(file);
+    bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' }); // apply EXIF rotation before redrawing
   } catch {
     throw new Error("This file couldn't be read as an image. Try a JPEG, PNG or WebP file.");
   }

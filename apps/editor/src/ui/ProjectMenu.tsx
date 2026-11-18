@@ -2,18 +2,21 @@ import { useRef } from 'react';
 import type { Project } from '@ivt/schema';
 import { fileSlug } from '../project';
 import { exportProjectJson, importProjectJson } from '../storage/projectJson';
-import { loadAssets } from '../storage/projectStore';
 import type { SaveStatus } from '../storage/usePersistence';
+import { downloadBlob } from './download';
 import { IconDownload, IconPlus, IconUpload } from './icons';
 
-const SAVE_TEXT: Record<SaveStatus, string> = {
-  saved: 'All changes saved in this browser',
-  saving: 'Saving…',
+/** Routine states change on every keystroke, so they are not announced. */
+const QUIET_TEXT: Partial<Record<SaveStatus, string>> = { saved: 'All changes saved in this browser', saving: 'Saving…' };
+/** Problems are announced, politely. */
+const PROBLEM_TEXT: Partial<Record<SaveStatus, string>> = {
   error: "Couldn't save in this browser. Export JSON to keep a copy.",
+  unavailable: 'Saving is unavailable in this browser; export your project to keep it',
 };
 
 type Props = {
   project: Project;
+  assets: Map<string, Blob>;
   saveStatus: SaveStatus;
   onImported: (p: Project, assets: Map<string, Blob>) => void;
   onNotice: (n: { tone: 'ok' | 'error'; text: string }) => void;
@@ -21,18 +24,17 @@ type Props = {
 };
 
 /** Save status plus the project file actions: import, export, start new. */
-export function ProjectMenu({ project, saveStatus, onImported, onNotice, onStartNew }: Props) {
+export function ProjectMenu({ project, assets, saveStatus, onImported, onNotice, onStartNew }: Props) {
   const fileInput = useRef<HTMLInputElement>(null);
 
   const exportJson = async () => {
-    const blob = await exportProjectJson(project, await loadAssets());
     const name = `${fileSlug(project.title)}.ivt.json`;
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = name;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 0);
-    onNotice({ tone: 'ok', text: `Downloaded ${name}.` });
+    try {
+      downloadBlob(await exportProjectJson(project, assets), name);
+      onNotice({ tone: 'ok', text: `Downloaded ${name}.` });
+    } catch {
+      onNotice({ tone: 'error', text: "Couldn't export the project. Try again, or try another browser." });
+    }
   };
 
   const importJson = async (file: File | undefined) => {
@@ -47,8 +49,10 @@ export function ProjectMenu({ project, saveStatus, onImported, onNotice, onStart
 
   return (
     <div className="project-menu">
-      {/* Not a live region: it changes on every keystroke. */}
-      <p className={`save-status is-${saveStatus}`} data-testid="save-status">{SAVE_TEXT[saveStatus]}</p>
+      <p className={`save-status is-${saveStatus}`}>
+        <span data-testid="save-status">{QUIET_TEXT[saveStatus]}</span>
+        <span role="status">{PROBLEM_TEXT[saveStatus]}</span>
+      </p>
       <div className="project-actions">
         <button type="button" className="btn btn-secondary btn-small" onClick={() => fileInput.current?.click()}>
           <IconUpload />Import JSON

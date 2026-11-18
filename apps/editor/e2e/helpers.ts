@@ -6,6 +6,9 @@ export const VIDEOS = {
   other: 'M7lc1UVf-VE', // 95 s, embeddable
   embedOff: 'embedOff_01',
   gone: 'goneVideo01',
+  /** Lookups for these wait until the test calls resolveLookup(). */
+  slowA: 'slowVideoA1',
+  slowB: 'slowVideoB1',
 } as const;
 
 /**
@@ -16,8 +19,10 @@ export async function openEditor(page: Page) {
   await page.addInitScript((v) => {
     const w = window as any;
     w.__infoCalls = [];
+    w.__resolveLookup = {};
     w.__ivtFakeVideoInfo = async (id: string) => {
       w.__infoCalls.push(id);
+      if (id.startsWith('slowVideo')) return new Promise((resolve) => (w.__resolveLookup[id] = resolve));
       if (id === v.embedOff) return { error: 'embed-disabled' };
       if (id === v.gone) return { error: 'unavailable' };
       return { duration: id === v.other ? 95 : 212, embeddable: true };
@@ -26,6 +31,26 @@ export async function openEditor(page: Page) {
   await page.goto('/?fake=1');
   await expect(page.getByRole('heading', { level: 2 })).toBeVisible();
 }
+
+/** Settles a pending slow lookup with the given result. */
+export const resolveLookup = (page: Page, id: string, result: unknown) =>
+  page.evaluate(([id, result]) => (window as any).__resolveLookup[id as string](result), [id, result] as const);
+
+/** Makes every IndexedDB write in the page fail, as when storage is full or revoked. */
+export const breakStorageWrites = (page: Page) =>
+  page.evaluate(() => {
+    IDBObjectStore.prototype.put = () => { throw new DOMException('Storage is full', 'QuotaExceededError'); };
+    IDBObjectStore.prototype.delete = () => { throw new DOMException('Storage is full', 'QuotaExceededError'); };
+    IDBObjectStore.prototype.clear = () => { throw new DOMException('Storage is full', 'QuotaExceededError'); };
+  });
+
+type Store = typeof import('../src/storage/projectStore');
+/** Runs a function against the app's own storage module inside the page. */
+export const withStore = <T,>(page: Page, fn: (store: Store) => Promise<T>) =>
+  page.evaluate(async (src) => {
+    const store = (await import('/src/storage/projectStore.ts' as string)) as Store;
+    return new Function('store', `return (${src})(store)`)(store) as Promise<T>;
+  }, fn.toString());
 
 export const urlField = (page: Page) => page.getByLabel('YouTube link');
 export const titleField = (page: Page) => page.getByLabel('Title', { exact: true });

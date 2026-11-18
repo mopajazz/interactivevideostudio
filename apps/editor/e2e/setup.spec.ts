@@ -35,6 +35,12 @@ test.describe('Step 1: Setup', () => {
   });
 
   test('a bad URL shows a described, announced error and keeps Next disabled', async ({ page }) => {
+    // The live region must already be in the accessibility tree before the message arrives.
+    const region = page.getByTestId('url-status');
+    await expect(region).toBeAttached();
+    await expect(region).toHaveAttribute('role', 'status');
+    expect(await region.evaluate((el) => getComputedStyle(el).display)).not.toBe('none');
+    await expect(region).toBeEmpty();
     await urlField(page).fill('https://vimeo.com/76979871');
     await titleField(page).fill('A title');
     const error = page.getByText(BAD);
@@ -43,7 +49,7 @@ test.describe('Step 1: Setup', () => {
     const describedBy = (await urlField(page).getAttribute('aria-describedby')) ?? '';
     const errorId = await error.getAttribute('id');
     expect(describedBy.split(' ')).toContain(errorId);
-    await expect(page.locator(`#${errorId}`).locator('xpath=ancestor-or-self::*[@role="status" or @aria-live="polite"]')).toHaveCount(1);
+    await expect(region.locator(`#${errorId}`)).toBeVisible();
     await expect(nextButton(page)).toHaveAttribute('aria-disabled', 'true');
     await expect(page.getByTestId('next-reason')).toHaveText('To continue, add a YouTube link.');
     await nextButton(page).click({ force: true }); // aria-disabled: still focusable and clickable, but inert

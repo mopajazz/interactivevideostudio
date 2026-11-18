@@ -80,7 +80,8 @@ export function Setup({ project, onChange, onNext, fetchVideoInfo = realFetchVid
           onPaste={() => setTouched(true)}
           onBlur={() => setTouched(true)}
         />
-        <div role="status" className="field-status">
+        {/* Always rendered (never display:none), so a message inserted later is announced. */}
+        <div role="status" className="field-status" data-testid="url-status">
           <UrlMessage badLink={badLink} check={check} duration={project.duration} />
         </div>
         {check === 'unavailable' && (

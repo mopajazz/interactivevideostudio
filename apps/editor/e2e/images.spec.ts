@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 /** Draws a w x h test image in the page and runs compressImage on it; returns facts about the output. */
-const compress = (page: Page, o: { w: number; h: number; type: string; maxEdge?: number; maxBytes?: number; exif?: boolean }) =>
+const compress = (page: Page, o: { w: number; h: number; type: string; maxEdge?: number; maxBytes?: number; exif?: boolean; orientation?: number }) =>
   page.evaluate(async (o) => {
     const { compressImage, newAssetId } = (await import('/src/storage/images.ts' as string)) as typeof import('../src/storage/images');
     const c = new OffscreenCanvas(o.w, o.h);
@@ -20,6 +20,14 @@ const compress = (page: Page, o: { w: number; h: number; type: string; maxEdge?:
       // Splice an APP1 "Exif" segment (with a fake GPS tag) in after the JPEG SOI marker.
       const raw = new Uint8Array(await blob.arrayBuffer());
       const payload = new TextEncoder().encode('Exif\0\0GPS-SECRET-LOCATION');
+      const seg = new Uint8Array([0xff, 0xe1, (payload.length + 2) >> 8, (payload.length + 2) & 255, ...payload]);
+      blob = new Blob([raw.slice(0, 2), seg, raw.slice(2)], { type: o.type });
+    }
+    if (o.orientation) {
+      // A minimal big-endian EXIF block holding one tag: Orientation (0x0112), SHORT, value o.orientation.
+      const raw = new Uint8Array(await blob.arrayBuffer());
+      const tiff = [0x4d, 0x4d, 0, 42, 0, 0, 0, 8, 0, 1, 0x01, 0x12, 0, 3, 0, 0, 0, 1, 0, o.orientation, 0, 0, 0, 0, 0, 0];
+      const payload = [...new TextEncoder().encode('Exif\0\0'), ...tiff];
       const seg = new Uint8Array([0xff, 0xe1, (payload.length + 2) >> 8, (payload.length + 2) & 255, ...payload]);
       blob = new Blob([raw.slice(0, 2), seg, raw.slice(2)], { type: o.type });
     }
@@ -71,4 +79,12 @@ test('throws a readable error for a file that is not an image', async ({ page })
     return compressImage(new File(['hello'], 'notes.png', { type: 'image/png' })).then(() => 'resolved', (e: Error) => e.message);
   });
   expect(message).toBe("This file couldn't be read as an image. Try a JPEG, PNG or WebP file.");
+});
+
+test('applies EXIF orientation before redrawing, so a rotated photo stays upright', async ({ page }) => {
+  // Orientation 6 = rotate 90° clockwise: stored 400 x 200, displayed 200 x 400.
+  const small = await compress(page, { w: 400, h: 200, type: 'image/jpeg', orientation: 6 });
+  expect(small).toMatchObject({ ok: true, w: 200, h: 400, hasExif: false });
+  const big = await compress(page, { w: 3200, h: 1600, type: 'image/jpeg', orientation: 6 });
+  expect(big).toMatchObject({ ok: true, w: 800, h: 1600, hasExif: false });
 });
