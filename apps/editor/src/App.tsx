@@ -150,13 +150,13 @@ export function App({ fetchVideoInfo, adapters = youTubeAdapters }: { fetchVideo
       {/* Always rendered (never display:none), so messages inserted later are announced. */}
       <div role="status" data-testid="notice" className={`notice${notice ? ` notice-${notice.tone}` : ''}`}>{notice?.text}</div>
       {hasBackup && (
-        <div className="recovery">
+        <section className="recovery" aria-label="Damaged project data">
           <p>Damaged project data from an earlier session is kept in this browser.</p>
           <div className="recovery-actions">
             <button type="button" className="btn btn-secondary btn-small" onClick={() => void downloadBackup()}>Download damaged data</button>
             <button type="button" className="btn btn-secondary btn-small" onClick={() => void discardBackup()}>Discard damaged data</button>
           </div>
-        </div>
+        </section>
       )}
       <main id="main" tabIndex={-1} className="app-main">
         {shown === 1 ? (

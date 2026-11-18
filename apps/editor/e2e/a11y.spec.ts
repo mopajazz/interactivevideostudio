@@ -91,6 +91,8 @@ for (const mode of MODES) {
     test('the damaged-data recovery bar', async ({ page }) => {
       await openWithDamagedData(page);
       await expect(notice(page)).toContainText("couldn't be read");
+      // A named region, so it is not stray content outside every landmark (axe best-practice "region").
+      await expect(page.getByRole('region', { name: 'Damaged project data' })).toBeVisible();
       await expectNoAxeViolations(page);
     });
 

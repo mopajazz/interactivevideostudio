@@ -128,6 +128,15 @@ describe('buildScormZip', () => {
       // title was HTML-escaped in the source
       expect(html).toContain('<title>T &lt;/script&gt;&lt;b&gt;&amp;&quot;x&quot;</title>');
     });
+    it('has one main landmark holding a level-one heading with the title, then the player root', async () => {
+      const zip = await unzip(await buildScormZip(p, new Map(), bundle));
+      const d = new DOMParser().parseFromString(await zip.file('index.html')!.async('string'), 'text/html');
+      expect(d.querySelectorAll('main')).toHaveLength(1);
+      const h1 = d.querySelector('main > h1')!;
+      expect(h1.textContent).toBe(title);
+      expect(h1.children).toHaveLength(0); // text only, never markup
+      expect(h1.nextElementSibling?.id).toBe('ivt-root');
+    });
   });
 
   describe('bootstrap script', () => {

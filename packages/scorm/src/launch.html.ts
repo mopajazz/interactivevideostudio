@@ -9,6 +9,7 @@ export function inlineJson(value: unknown): string {
     .replace(/\u2029/g, '\\u2029');
 }
 
+/** The launch page: the activity title as a (visually hidden) h1, since the LMS usually shows it already, then the player. */
 export function buildIndexHtml(project: Project): string {
   return `<!doctype html>
 <html lang="en">
@@ -19,7 +20,10 @@ export function buildIndexHtml(project: Project): string {
 <link rel="stylesheet" href="player.css">
 </head>
 <body>
+<main>
+<h1 class="ivp-visually-hidden">${escapeXml(project.title)}</h1>
 <div id="ivt-root"></div>
+</main>
 <script type="application/json" id="ivt-project">${inlineJson(project)}</script>
 <script src="player.js"></script>
 <script src="launch.js"></script>
