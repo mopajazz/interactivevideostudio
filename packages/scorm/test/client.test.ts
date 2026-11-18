@@ -143,4 +143,22 @@ describe('createScormClient', () => {
     c.finish();
     expect(api.LMSFinish).toHaveBeenCalledTimes(1);
   });
+
+  it('makes no LMS calls after finish()', () => {
+    const api = fakeApi();
+    const c = createScormClient(chain(api, 0));
+    c.init();
+    c.finish();
+    api.LMSSetValue.mockClear();
+    api.LMSCommit.mockClear();
+    api.LMSGetValue.mockClear();
+    c.commit();
+    c.setScore(1, 0, 2);
+    c.setStatus('passed');
+    c.setSuspend('x');
+    c.finish();
+    expect(api.LMSCommit).not.toHaveBeenCalled();
+    expect(api.LMSSetValue).not.toHaveBeenCalled();
+    expect(api.LMSFinish).toHaveBeenCalledTimes(1);
+  });
 });

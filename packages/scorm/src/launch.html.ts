@@ -24,8 +24,18 @@ export function buildIndexHtml(project: Project): string {
 <script src="player.js"></script>
 <script src="launch.js"></script>
 <script>
-var project = JSON.parse(document.getElementById('ivt-project').textContent);
-IVScorm.start(window, document, project, IVPlayer.mount);
+(function () {
+  try {
+    var project = JSON.parse(document.getElementById('ivt-project').textContent);
+    IVScorm.start(window, document, project, IVPlayer.mount);
+  } catch (e) {
+    var root = document.getElementById('ivt-root');
+    if (root) {
+      root.setAttribute('role', 'alert');
+      root.textContent = 'This activity could not start. Reload the page or contact your instructor.';
+    }
+  }
+})();
 </script>
 </body>
 </html>

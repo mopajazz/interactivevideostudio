@@ -79,7 +79,7 @@ export function createScormClient(win: Window): ScormClient {
       return fallback;
     }
   };
-  const set = (k: string, v: string) => void safe(() => api.LMSSetValue(k, String(v)), '');
+  const set = (k: string, v: string) => void (!finished && safe(() => api.LMSSetValue(k, String(v)), ''));
   return {
     connected: true,
     init() {
@@ -103,6 +103,7 @@ export function createScormClient(win: Window): ScormClient {
       set('cmi.suspend_data', s);
     },
     commit() {
+      if (finished) return; // nothing may follow LMSFinish (SCORM 1.2 error 301)
       safe(() => api.LMSCommit(''), '');
     },
     finish() {

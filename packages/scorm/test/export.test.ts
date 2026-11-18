@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import JSZip from 'jszip';
 import type { Project } from '@ivt/schema';
 import { buildManifest } from '../src/manifest';
@@ -127,6 +127,35 @@ describe('buildScormZip', () => {
       expect(json).not.toContain(' ');
       // title was HTML-escaped in the source
       expect(html).toContain('<title>T &lt;/script&gt;&lt;b&gt;&amp;&quot;x&quot;</title>');
+    });
+  });
+
+  describe('bootstrap script', () => {
+    const run = async (html: string, g: Record<string, unknown>) => {
+      const d = new DOMParser().parseFromString(html, 'text/html');
+      const code = Array.from(d.querySelectorAll('script:not([src]):not([type])')).map((e) => e.textContent).join('\n');
+      new Function('document', 'window', ...Object.keys(g), code)(d, {}, ...Object.values(g));
+      return d.getElementById('ivt-root')!;
+    };
+    const page = async () => (await unzip(await buildScormZip(project(), new Map(), bundle))).file('index.html')!.async('string');
+
+    it('shows a readable alert when the bundles did not load', async () => {
+      const root = await run(await page(), {});
+      expect(root.getAttribute('role')).toBe('alert');
+      expect(root.textContent).toMatch(/could not start/i);
+    });
+    it('shows the alert when the project JSON is broken', async () => {
+      const html = (await page()).replace(/(id="ivt-project">)[^<]*/, '$1{broken');
+      const root = await run(html, { IVScorm: { start() {} }, IVPlayer: { mount() {} } });
+      expect(root.getAttribute('role')).toBe('alert');
+    });
+    it('starts normally when everything loaded', async () => {
+      const start = vi.fn();
+      const mountFn = () => {};
+      const root = await run(await page(), { IVScorm: { start }, IVPlayer: { mount: mountFn } });
+      expect(start).toHaveBeenCalledTimes(1);
+      expect(start.mock.calls[0]![3]).toBe(mountFn);
+      expect(root.textContent).toBe('');
     });
   });
 

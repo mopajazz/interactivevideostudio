@@ -37,19 +37,19 @@ export function start(win: Window, doc: Document, project: Project, mountFn: typ
     onProgress(state) {
       if (finished) return;
       last = state;
+      guard(() => client.setSuspend(encodeSuspend(state, ids)));
       guard(() => {
-        client.setSuspend(encodeSuspend(state, ids));
         if (!submitted) client.setStatus('incomplete');
-        client.commit();
       });
+      guard(() => client.commit());
     },
     onResult(result) {
       if (finished) return;
       submitted = true;
       guard(() => {
         if (result.scored) client.setScore(result.raw, 0, result.max);
-        client.setStatus(result.status);
       });
+      guard(() => client.setStatus(result.status));
       guard(() => client.setSuspend(encodeSuspend({ ...last, submitted: true }, ids)));
       guard(() => client.commit());
       finished = true;
@@ -58,10 +58,9 @@ export function start(win: Window, doc: Document, project: Project, mountFn: typ
   });
 
   win.addEventListener('pagehide', () => {
+    if (finished) return; // already committed and finished by onResult
     guard(() => client.commit());
-    if (!finished) {
-      finished = true;
-      guard(() => client.finish());
-    }
+    finished = true;
+    guard(() => client.finish());
   });
 }

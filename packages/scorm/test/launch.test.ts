@@ -145,10 +145,53 @@ describe('start', () => {
     expect(() => s.listeners.pagehide!()).not.toThrow();
   });
 
-  it('survives a failing encodeSuspend and client', () => {
+  const names = (m: { mock: { calls: unknown[][] } }) => m.mock.calls.length;
+
+  it('a failing encodeSuspend still reports incomplete and commits', () => {
     const s = setup();
     start(s.win, s.doc, project, s.mountFn);
     const bad = { furthest: 1, get answers(): never { throw new Error('x'); }, submitted: false } as unknown as SuspendState;
     expect(() => s.opts().onProgress!(bad)).not.toThrow();
+    expect(sets(s.api)).toContainEqual(['cmi.core.lesson_status', 'incomplete']);
+    expect(s.api.LMSCommit).toHaveBeenCalled();
+  });
+
+  it('a throwing setSuspend still reports incomplete and commits', () => {
+    const s = setup({ apiOver: { LMSSetValue: vi.fn((k: string) => { if (k === 'cmi.suspend_data') throw new Error('x'); return 'true'; }) } });
+    start(s.win, s.doc, project, s.mountFn);
+    s.opts().onProgress!(state());
+    expect(sets(s.api)).toContainEqual(['cmi.core.lesson_status', 'incomplete']);
+    expect(s.api.LMSCommit).toHaveBeenCalled();
+  });
+
+  it('a throwing setScore still sets status, commits and finishes', () => {
+    const s = setup({ apiOver: { LMSSetValue: vi.fn((k: string) => { if (k.startsWith('cmi.core.score')) throw new Error('x'); return 'true'; }) } });
+    start(s.win, s.doc, project, s.mountFn);
+    s.opts().onResult!(result);
+    expect(sets(s.api)).toContainEqual(['cmi.core.lesson_status', 'failed']);
+    expect(s.api.LMSCommit).toHaveBeenCalled();
+    expect(s.api.LMSFinish).toHaveBeenCalledTimes(1);
+  });
+
+  it('a failing encodeSuspend in onResult still sets status, commits and finishes', () => {
+    const s = setup();
+    start(s.win, s.doc, project, s.mountFn);
+    s.opts().onProgress!({ furthest: 1, get answers(): never { throw new Error('x'); }, submitted: false } as unknown as SuspendState);
+    s.opts().onResult!(result);
+    expect(sets(s.api)).toContainEqual(['cmi.core.lesson_status', 'failed']);
+    expect(s.api.LMSFinish).toHaveBeenCalledTimes(1);
+  });
+
+  it('pagehide after onResult makes no LMS calls (nothing after LMSFinish)', () => {
+    const s = setup();
+    start(s.win, s.doc, project, s.mountFn);
+    s.opts().onResult!(result);
+    const commits = names(s.api.LMSCommit);
+    const setCount = names(s.api.LMSSetValue);
+    s.listeners.pagehide!();
+    s.opts().onProgress!(state({ submitted: true }));
+    expect(names(s.api.LMSCommit)).toBe(commits);
+    expect(names(s.api.LMSSetValue)).toBe(setCount);
+    expect(s.api.LMSFinish).toHaveBeenCalledTimes(1);
   });
 });
