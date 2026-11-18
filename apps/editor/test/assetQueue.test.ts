@@ -28,6 +28,18 @@ describe('createAssetQueue', () => {
     expect(states.at(-1)).toEqual({ pending: false, failed: false });
   });
 
+  it('says synchronously whether anything is still queued (export checks it after a flush)', async () => {
+    let fail = true;
+    const io = { put: vi.fn(async () => { if (fail) throw new Error('full'); }), del: vi.fn(async () => {}) };
+    const q = createAssetQueue(io, () => {});
+    expect(q.pending()).toBe(false);
+    await q.put('a.png', blob());
+    expect(q.pending()).toBe(true);
+    fail = false;
+    await q.flush();
+    expect(q.pending()).toBe(false);
+  });
+
   it('retries failed removals, and the last operation on an id wins', async () => {
     let fail = true;
     const io = { put: vi.fn(async () => {}), del: vi.fn(async () => { if (fail) throw new Error('broken'); }) };

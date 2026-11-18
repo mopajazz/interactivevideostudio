@@ -116,7 +116,7 @@ test.describe('Step 1: Setup', () => {
     await expect(currentStep(page)).toContainText('Interactions');
     await expect(page.getByRole('group', { name: 'Add a checkpoint at the playhead' })).toBeVisible();
     await stepButton(page, /Scoring & export/).click();
-    await expect(page.getByText('Coming next')).toBeVisible();
+    await expect(page.getByRole('switch', { name: 'Disable forward scrubbing' })).toBeVisible();
     await expect(page.getByRole('heading', { level: 2, name: 'Scoring & export' })).toBeFocused();
     await stepButton(page, /Setup/).click();
     await expect(page.getByRole('heading', { level: 2, name: 'Setup' })).toBeFocused();

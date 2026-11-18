@@ -38,6 +38,8 @@ export function createAssetQueue(
     remove: (id: string) => enqueue(id, { kind: 'delete' }),
     /** Retries everything still queued. */
     flush,
+    /** Something is still waiting to reach storage (export blocks on this after a flush). */
+    pending: () => queue.size > 0,
     /** Forgets the queue (a whole project, with its images, was written in its place). */
     clear() {
       queue.clear();

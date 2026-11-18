@@ -138,5 +138,7 @@ export function usePersistence() {
     imageError: images.failed,
     /** Image writes not yet in storage (including failed ones); export waits for these. */
     assetsPending: images.pending,
+    /** The queue itself, so the SCORM export can flush it and check what is left. */
+    assetQueue,
   };
 }

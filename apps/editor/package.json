@@ -4,15 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "test": "vitest run",
-    "e2e": "playwright test --trace off",
+    "bundles": "pnpm --silent --filter @ivt/player --filter @ivt/scorm run build --logLevel error",
+    "dev": "pnpm --silent bundles && vite",
+    "build": "pnpm --silent bundles && vite build",
+    "test": "pnpm --silent bundles && vitest run",
+    "e2e": "pnpm --silent bundles && playwright test --trace off",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@ivt/player": "workspace:*",
     "@ivt/schema": "workspace:*",
+    "@ivt/scorm": "workspace:*",
     "@tiptap/core": "3.32.0",
     "@tiptap/extension-bold": "3.32.0",
     "@tiptap/extension-document": "3.32.0",
@@ -36,6 +38,7 @@
     "@vitejs/plugin-react": "4.3.4",
     "fake-indexeddb": "^6.0.0",
     "jsdom": "^25.0.1",
+    "jszip": "^3.10.1",
     "vite": "5.4.21",
     "vitest": "^2.1.0"
   }

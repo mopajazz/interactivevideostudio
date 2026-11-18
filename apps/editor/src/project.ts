@@ -17,6 +17,13 @@ export const isBlank = (p: Project) => !p.videoId && !p.title.trim() && p.intera
 
 export const watchUrl = (videoId: string) => `https://www.youtube.com/watch?v=${videoId}`;
 
-/** "round-trip" from "Round trip!"; never empty. */
-export const fileSlug = (title: string) =>
-  title.normalize('NFKD').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'untitled-project';
+/** Latin letters that Unicode decomposition does not reduce to plain a-z. */
+const LATIN: Record<string, string> = { ß: 'ss', æ: 'ae', œ: 'oe', ø: 'o', đ: 'd', ð: 'd', ł: 'l', þ: 'th', ı: 'i' };
+
+/**
+ * "round-trip" from "Round trip!": lowercase a-z, 0-9 and single dashes, at most 60 characters, so it is safe as a
+ * file name anywhere. Accents are dropped ("Café" -> "cafe"); a title with no Latin letters or digits gives `fallback`.
+ */
+export const fileSlug = (title: string, fallback = 'untitled-project') =>
+  title.toLowerCase().replace(/[ßæœøđðłþı]/g, (c) => LATIN[c] ?? c).normalize('NFKD').replace(/\p{M}/gu, '')
+    .replace(/[^a-z0-9]+/g, '-').slice(0, 60).replace(/^-+|-+$/g, '') || fallback;

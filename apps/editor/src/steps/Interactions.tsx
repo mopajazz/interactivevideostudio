@@ -23,13 +23,16 @@ type Props = {
   removeAsset: (id: string) => Promise<void>;
   adapters: VideoAdapters;
   onGo: (s: Step) => void;
+  /** Open this checkpoint, with focus in its drawer, instead of the first one (from Step 3's blocker list). */
+  openCheckpoint?: string | null;
 };
 
 type Focus = 'drawer' | 'timeline' | 'preview' | { node: string } | HTMLElement | null;
 
 /** Step 2: tools across the top of the video, the scrubber, the timeline of checkpoints and the settings drawer. */
-export function Interactions({ project, onChange, assets, addAsset, removeAsset, adapters, onGo }: Props) {
-  const [selectedId, setSelectedId] = useState<string | null>(() => sortedInteractions(project)[0]?.id ?? null);
+export function Interactions({ project, onChange, assets, addAsset, removeAsset, adapters, onGo, openCheckpoint }: Props) {
+  const opening = openCheckpoint && project.interactions.some((i) => i.id === openCheckpoint) ? openCheckpoint : null;
+  const [selectedId, setSelectedId] = useState<string | null>(() => opening ?? sortedInteractions(project)[0]?.id ?? null);
   const [time, setTime] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [deleting, setDeleting] = useState<{ id: string; trigger: HTMLElement } | null>(null);
@@ -39,7 +42,7 @@ export function Interactions({ project, onChange, assets, addAsset, removeAsset,
   const timeline = useRef<HTMLDivElement>(null);
   const drawer = useRef<HTMLElement>(null);
   const previewButton = useRef<HTMLButtonElement>(null);
-  const focusAfter = useRef<Focus>(null);
+  const focusAfter = useRef<Focus>(opening ? 'drawer' : null);
   const latest = useRef(project);
   latest.current = project;
 

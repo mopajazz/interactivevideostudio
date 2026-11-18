@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Project } from '@ivt/schema';
-import { ComingNext } from './steps/ComingNext';
+import { Finish } from './steps/Finish';
 import { Interactions } from './steps/Interactions';
 import { Setup } from './steps/Setup';
 import { isBlank, isSetupComplete, newProject } from './project';
@@ -26,9 +26,13 @@ const LOAD_NOTICE: Record<Exclude<LoadIssue, null>, string> = {
 const titleOf = (p: Project) => p.title || 'Untitled project';
 
 export function App({ fetchVideoInfo, adapters = youTubeAdapters }: { fetchVideoInfo?: FetchVideoInfo; adapters?: VideoAdapters }) {
-  const { state, status, loadIssue, hasBackup, setHasBackup, updateProject, setStep, replace, addAsset, removeAsset, imageError, assetsPending } = usePersistence();
+  const {
+    state, status, loadIssue, hasBackup, setHasBackup, updateProject, setStep, replace, addAsset, removeAsset, imageError, assetsPending, assetQueue,
+  } = usePersistence();
   const [pending, setPending] = useState<Pending | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
+  // A checkpoint Step 2 opens with focus in its drawer (from Step 3's "Go to checkpoint"); cleared by any other move.
+  const [checkpoint, setCheckpoint] = useState<string | null>(null);
   // Bumped on start-new/import so Setup starts with fresh field state.
   const [session, setSession] = useState(0);
   // Where focus goes after the next render: the new step's heading, or back to a trigger. Applied only once no
@@ -56,7 +60,14 @@ export function App({ fetchVideoInfo, adapters = youTubeAdapters }: { fetchVideo
 
   const go = (s: Step) => {
     focusAfter.current = 'heading';
+    setCheckpoint(null);
     setStep(s);
+  };
+  /** Step 2 focuses the checkpoint's drawer itself, so the heading is not focused here. */
+  const goToCheckpoint = (id: string) => {
+    focusAfter.current = null;
+    setCheckpoint(id);
+    setStep(2);
   };
 
   /** Replaces the project; on a storage failure the previous project stays and the author is told why. */
@@ -159,9 +170,19 @@ export function App({ fetchVideoInfo, adapters = youTubeAdapters }: { fetchVideo
             removeAsset={removeAsset}
             adapters={adapters}
             onGo={go}
+            openCheckpoint={checkpoint}
           />
         ) : (
-          <ComingNext onGo={go} />
+          <Finish
+            key={session}
+            project={project}
+            onChange={updateProject}
+            assets={state.assets}
+            assetQueue={assetQueue}
+            onGo={go}
+            onGoToCheckpoint={goToCheckpoint}
+            onNotice={setNotice}
+          />
         )}
       </main>
       {pending?.kind === 'new' && (
