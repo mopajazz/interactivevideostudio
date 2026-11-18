@@ -5,7 +5,8 @@ const HOSTS = new Set(['youtube.com', 'www.youtube.com', 'm.youtube.com', 'music
 export function parseYouTubeId(input: string): string | null {
   let url: URL;
   try {
-    url = new URL(input.trim());
+    const trimmed = input.trim();
+    url = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`);
   } catch {
     return null;
   }
