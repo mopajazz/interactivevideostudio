@@ -68,3 +68,17 @@ describe('FakeAdapter', () => {
     expect(errs).toEqual([150]);
   });
 });
+
+describe('FakeAdapter end and state helpers', () => {
+  it('emits ended once when advance reaches the duration', () => {
+    const f = new FakeAdapter(2);
+    const states: string[] = [];
+    f.on('state', (s) => states.push(s));
+    f.play();
+    f.advance(5);
+    f.advance(5);
+    expect(states).toEqual(['playing', 'ended']);
+    f.emitState('buffering');
+    expect(states.at(-1)).toBe('buffering');
+  });
+});

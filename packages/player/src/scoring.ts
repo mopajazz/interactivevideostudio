@@ -9,7 +9,7 @@ export type Result = {
   status: 'passed' | 'failed' | 'completed';
 };
 
-const isQuestion = (i: Interaction) => i.type === 'multipleChoice' || i.type === 'trueFalse';
+export const isQuestion = (i: Interaction) => i.type === 'multipleChoice' || i.type === 'trueFalse';
 
 export class ScoreState {
   private readonly questions: Interaction[];
