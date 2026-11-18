@@ -2,14 +2,25 @@ import { useEffect, useId, useState } from 'react';
 import { formatDuration, parseTime } from '../format';
 import { IconAlert } from '../ui/icons';
 
-type Props = { value: number; max: number; onCommit: (seconds: number) => void };
+type Props = {
+  value: number;
+  max: number;
+  /** The video's length: a value at or after it is flagged until the author moves it earlier. */
+  duration: number;
+  onCommit: (seconds: number) => void;
+};
 
 /** The checkpoint's time as m:ss. Commits on Enter or leaving the field; refuses nonsense, clamps to `max`. */
-export function TimeField({ value, max, onCommit }: Props) {
+export function TimeField({ value, max, duration, onCommit }: Props) {
   const id = useId();
   const [text, setText] = useState(formatDuration(value));
   const [msg, setMsg] = useState<{ error: boolean; text: string } | null>(null);
   useEffect(() => setText(formatDuration(value)), [value]);
+  const pastEnd = duration > 0 && value >= duration;
+  // A refused entry is reported first; otherwise a stored time past the end stays flagged until it is fixed.
+  const shown = msg?.error || !pastEnd
+    ? msg
+    : { error: true, text: `This checkpoint is after the end of the video (${formatDuration(duration)}). Move it earlier.` };
 
   const commit = () => {
     if (text.trim() === formatDuration(value)) return setMsg(null);
@@ -32,14 +43,14 @@ export function TimeField({ value, max, onCommit }: Props) {
         inputMode="numeric"
         autoComplete="off"
         value={text}
-        aria-invalid={msg?.error || undefined}
+        aria-invalid={shown?.error || undefined}
         aria-describedby={`${id}-hint ${id}-msg`}
         onChange={(e) => setText(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commit(); } }}
       />
       <div role="status" className="field-status">
-        {msg && <p id={`${id}-msg`} className={`msg ${msg.error ? 'msg-error' : 'msg-info'}`}>{msg.error && <IconAlert />}{msg.text}</p>}
+        {shown && <p id={`${id}-msg`} className={`msg ${shown.error ? 'msg-error' : 'msg-info'}`}>{shown.error && <IconAlert />}{shown.text}</p>}
       </div>
     </div>
   );

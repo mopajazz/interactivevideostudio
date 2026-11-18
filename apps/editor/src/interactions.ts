@@ -73,6 +73,13 @@ export function setCorrect(it: Interaction, choiceId: string, correct: boolean):
   return { ...it, choices };
 }
 
+/**
+ * Checkpoints at or after the end of the video (possible after a shorter video replaces the old one). They are
+ * flagged for the author to move, never clamped behind their back. Empty while the duration is unknown.
+ */
+export const outOfRange = (p: Project): string[] =>
+  p.duration > 0 ? p.interactions.filter((i) => i.time >= p.duration).map((i) => i.id) : [];
+
 /** Play order: by time, and by `order` for checkpoints that share a time. */
 export const sortedInteractions = (p: Project) => [...p.interactions].sort((a, b) => a.time - b.time || a.order - b.order);
 

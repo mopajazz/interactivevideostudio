@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import type { Project } from '@ivt/schema';
-import { checkpointName, sortedInteractions } from '../interactions';
-import { IconPlus } from '../ui/icons';
+import { checkpointName, outOfRange, sortedInteractions } from '../interactions';
+import { IconAlert, IconPlus } from '../ui/icons';
 import { toolOf } from './ToolBar';
 
 type Props = {
@@ -39,6 +39,7 @@ export const Timeline = forwardRef<HTMLDivElement, Props>(function Timeline(
   ref,
 ) {
   const items = sortedInteractions(project);
+  const late = new Set(outOfRange(project));
   const track = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   useEffect(() => {
@@ -77,14 +78,15 @@ export const Timeline = forwardRef<HTMLDivElement, Props>(function Timeline(
             {items.map((it, i) => {
               const { key, Icon } = toolOf(it.type);
               const selected = it.id === selectedId;
+              const past = late.has(it.id);
               return (
                 <button
                   key={it.id}
                   type="button"
                   data-id={it.id}
-                  className={`node tool-${key}${selected ? ' is-selected' : ''}`}
+                  className={`node tool-${key}${selected ? ' is-selected' : ''}${past ? ' is-past-end' : ''}`}
                   style={{ left: pct(it.time, project.duration), ['--lane' as string]: lane[i] }}
-                  aria-label={checkpointName(project, it)}
+                  aria-label={`${checkpointName(project, it)}${past ? ', past the end of the video' : ''}`}
                   aria-current={selected ? 'true' : undefined}
                   aria-describedby="timeline-hint"
                   tabIndex={it.id === stop ? 0 : -1}
@@ -92,6 +94,7 @@ export const Timeline = forwardRef<HTMLDivElement, Props>(function Timeline(
                   onKeyDown={(e) => onKey(e, i)}
                 >
                   <Icon />
+                  {past && <span className="node-warning"><IconAlert /></span>}
                 </button>
               );
             })}

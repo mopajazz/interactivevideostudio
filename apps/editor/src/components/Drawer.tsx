@@ -13,6 +13,7 @@ type Props = {
   it: Interaction;
   name: string;
   maxTime: number;
+  duration: number;
   image: Blob | undefined;
   onPatch: (id: string, update: (it: Interaction) => Interaction) => void;
   onTime: (id: string, seconds: number) => void;
@@ -26,7 +27,7 @@ type Props = {
  * ticking does not re-render the editors; the forwarded ref lets the step focus its first field.
  */
 export const Drawer = memo(forwardRef<HTMLElement, Props>(function Drawer(
-  { it, name, maxTime, image, onPatch, onTime, onMoveToPlayhead, onImage, onDeleteRequest },
+  { it, name, maxTime, duration, image, onPatch, onTime, onMoveToPlayhead, onImage, onDeleteRequest },
   ref,
 ) {
   const { key, Icon } = toolOf(it.type);
@@ -44,7 +45,7 @@ export const Drawer = memo(forwardRef<HTMLElement, Props>(function Drawer(
         {it.type === 'link' && <LinkEditor it={it} onPatch={patch} />}
         {it.type === 'image' && <ImageEditor it={it} onPatch={patch} image={image} onImage={(blob) => onImage(it.id, blob)} />}
         <div className="drawer-time">
-          <TimeField value={it.time} max={maxTime} onCommit={(t) => onTime(it.id, t)} />
+          <TimeField value={it.time} max={maxTime} duration={duration} onCommit={(t) => onTime(it.id, t)} />
           <button type="button" className="btn btn-secondary btn-small" onClick={() => onMoveToPlayhead(it.id)}>
             <IconPlayhead />Move to playhead
           </button>

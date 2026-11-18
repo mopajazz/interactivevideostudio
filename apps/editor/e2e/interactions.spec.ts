@@ -514,3 +514,111 @@ test.describe('changing the video in Step 1', () => {
     await expect(page.getByRole('dialog')).toHaveCount(0);
   });
 });
+
+test.describe('checkpoints past the end of a shorter video', () => {
+  test('are flagged on the node and in the drawer until moved earlier', async ({ page }) => {
+    await addAt(page, 'Text', 120);
+    await addAt(page, 'Link', 30);
+    await stepButton(page, /Setup/).click();
+    await urlField(page).fill(`https://youtu.be/${VIDEOS.other}`); // 95 s
+    await page.getByRole('dialog').getByRole('button', { name: 'Change video' }).click();
+    await expect(page.getByText('1:35')).toBeVisible();
+    await stepButton(page, /Interactions/).click();
+
+    await expect.poll(() => nodeNames(page)).toEqual(['Link 1 at 0:30', 'Text 1 at 2:00, past the end of the video']);
+    const late = nodes(page).nth(1);
+    await expect(late.locator('.node-warning svg')).toHaveCount(1); // a shape, not only a color
+    await expect(nodes(page).nth(0).locator('.node-warning')).toHaveCount(0);
+
+    await late.click();
+    const time = drawer(page).getByLabel('Time', { exact: true });
+    await expect(time).toHaveValue('2:00'); // not silently clamped
+    const error = drawer(page).getByText('This checkpoint is after the end of the video (1:35). Move it earlier.');
+    await expect(error).toBeVisible();
+    await expect(time).toHaveAttribute('aria-invalid', 'true');
+    expect((await time.getAttribute('aria-describedby'))!.split(' ')).toContain(await error.getAttribute('id'));
+    expect(await error.evaluate((el) => el.closest('[role="status"]') !== null)).toBe(true);
+
+    await time.fill('1:00');
+    await time.press('Enter');
+    await expect(error).toHaveCount(0);
+    await expect(time).not.toHaveAttribute('aria-invalid', 'true');
+    await expect.poll(() => nodeNames(page)).toEqual(['Link 1 at 0:30', 'Text 1 at 1:00']);
+    await expect(nodes(page).nth(1).locator('.node-warning')).toHaveCount(0);
+  });
+});
+
+/** Makes IndexedDB writes of image blobs (puts) or image deletes fail while the flag is on; project writes still work. */
+const failImageWrites = (page: Page, which: 'put' | 'delete', on: boolean) =>
+  page.evaluate(([which, on]) => {
+    const w = window as any;
+    if (!w.__origPut) {
+      w.__origPut = IDBObjectStore.prototype.put;
+      w.__origDelete = IDBObjectStore.prototype.delete;
+      IDBObjectStore.prototype.put = function (this: IDBObjectStore, v: unknown, k?: IDBValidKey) {
+        if (w.__failPut && v instanceof Blob) throw new DOMException('Storage is full', 'QuotaExceededError');
+        return w.__origPut.call(this, v, k);
+      };
+      IDBObjectStore.prototype.delete = function (this: IDBObjectStore, k: IDBValidKey | IDBKeyRange) {
+        if (w.__failDelete && typeof k === 'string' && k.startsWith('asset:')) throw new DOMException('Storage is broken', 'UnknownError');
+        return w.__origDelete.call(this, k);
+      };
+    }
+    w[which === 'put' ? '__failPut' : '__failDelete'] = on;
+  }, [which, on] as const);
+
+test.describe('image writes that fail', () => {
+  const IMAGE_ERROR = "Couldn't save an image. Retrying…";
+  const assetKeys = (page: Page) => withStore(page, (s) => s.loadAssets().then((m) => [...m.keys()]));
+  const exportBlocked = async (page: Page) => {
+    let downloaded = false;
+    page.once('download', () => { downloaded = true; });
+    await page.getByRole('button', { name: 'Export JSON' }).click();
+    await expect(page.getByTestId('notice')).toHaveText(/Export is paused until every image is saved in this browser/);
+    expect(downloaded).toBe(false);
+  };
+
+  test('a failed image save stays reported after the project saves, blocks export, and is retried', async ({ page }, info) => {
+    await failImageWrites(page, 'put', true);
+    await tool(page, 'Image').click();
+    await drawer(page).getByLabel('Image file').setInputFiles(PNG);
+    await expect(drawer(page).getByRole('img', { name: 'Preview of the chosen image' })).toBeVisible();
+    const status = page.getByRole('banner').getByRole('status').filter({ hasText: IMAGE_ERROR });
+    await expect(status).toBeVisible();
+    // The project itself saves fine; that must not hide the image failure.
+    await expect.poll(() => stored(page, (p) => p.interactions[0]!.imageAssetId)).toBeTruthy();
+    await expect(page.getByText('All changes saved in this browser')).toHaveCount(0);
+    await expect(status).toBeVisible();
+    expect(await assetKeys(page)).toEqual([]);
+    await exportBlocked(page);
+
+    await failImageWrites(page, 'put', false);
+    await drawer(page).getByRole('textbox', { name: 'Alt text' }).fill('A leaf'); // any edit autosaves, and retries
+    await expect(page.getByText(IMAGE_ERROR)).toHaveCount(0);
+    await expect(page.getByTestId('save-status')).toHaveText('All changes saved in this browser');
+    const id = (await stored(page, (p) => p.interactions[0]!.imageAssetId))!;
+    expect(await assetKeys(page)).toEqual([id]);
+    expect(Object.keys((await exportJson(page, info.outputPath('ok.json'))).assets)).toEqual([id]);
+  });
+
+  test('a failed image removal is reported and retried, so no orphan is left in storage', async ({ page }) => {
+    await tool(page, 'Image').click();
+    await drawer(page).getByLabel('Image file').setInputFiles(PNG);
+    await expect.poll(() => assetKeys(page).then((k) => k.length)).toBe(1);
+    await failImageWrites(page, 'delete', true);
+    await drawer(page).getByRole('button', { name: 'Delete checkpoint' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click();
+    await expect(nodes(page)).toHaveCount(0);
+    await expect(page.getByText(IMAGE_ERROR)).toBeVisible();
+    await expect.poll(() => stored(page, (p) => p.interactions.length)).toBe(0);
+    await expect(page.getByText(IMAGE_ERROR)).toBeVisible();
+    expect((await assetKeys(page)).length).toBe(1);
+    await exportBlocked(page);
+
+    await failImageWrites(page, 'delete', false);
+    await tool(page, 'Text').click(); // an edit: autosave retries the removal
+    await expect(page.getByText(IMAGE_ERROR)).toHaveCount(0);
+    await expect(page.getByTestId('save-status')).toHaveText('All changes saved in this browser');
+    expect(await assetKeys(page)).toEqual([]);
+  });
+});

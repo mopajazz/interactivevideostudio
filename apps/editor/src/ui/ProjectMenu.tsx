@@ -14,20 +14,32 @@ const PROBLEM_TEXT: Partial<Record<SaveStatus, string>> = {
   unavailable: 'Saving is unavailable in this browser; export your project to keep it',
 };
 
+export const IMAGE_ERROR = "Couldn't save an image. Retrying…";
+
 type Props = {
   project: Project;
   assets: Map<string, Blob>;
   saveStatus: SaveStatus;
+  /** An image failed to save and is being retried: shown until it gets through, whatever the project save did. */
+  imageError: boolean;
+  /** Images not yet in storage: export waits for them. */
+  assetsPending: boolean;
   onImported: (p: Project, assets: Map<string, Blob>) => void;
   onNotice: (n: { tone: 'ok' | 'error'; text: string }) => void;
   onStartNew: (trigger: HTMLElement) => void;
 };
 
 /** Save status plus the project file actions: import, export, start new. */
-export function ProjectMenu({ project, assets, saveStatus, onImported, onNotice, onStartNew }: Props) {
+export function ProjectMenu({ project, assets, saveStatus, imageError, assetsPending, onImported, onNotice, onStartNew }: Props) {
   const fileInput = useRef<HTMLInputElement>(null);
 
   const exportJson = async () => {
+    if (assetsPending) {
+      return onNotice({
+        tone: 'error',
+        text: 'Export is paused until every image is saved in this browser. The editor is retrying; try again in a moment.',
+      });
+    }
     const name = `${fileSlug(project.title)}.ivt.json`;
     try {
       downloadBlob(await exportProjectJson(project, assets), name);
@@ -49,9 +61,9 @@ export function ProjectMenu({ project, assets, saveStatus, onImported, onNotice,
 
   return (
     <div className="project-menu">
-      <p className={`save-status is-${saveStatus}`}>
-        <span data-testid="save-status">{QUIET_TEXT[saveStatus]}</span>
-        <span role="status">{PROBLEM_TEXT[saveStatus]}</span>
+      <p className={`save-status is-${imageError ? 'error' : saveStatus}`}>
+        <span data-testid="save-status">{imageError ? '' : QUIET_TEXT[saveStatus]}</span>
+        <span role="status">{[PROBLEM_TEXT[saveStatus], imageError && IMAGE_ERROR].filter(Boolean).join(' ')}</span>
       </p>
       <div className="project-actions">
         <button type="button" className="btn btn-secondary btn-small" onClick={() => fileInput.current?.click()}>

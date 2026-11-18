@@ -6,6 +6,7 @@ import {
   checkpointName,
   maxTime,
   moveInteraction,
+  outOfRange,
   removeChoice,
   removeInteraction,
   setCorrect,
@@ -176,5 +177,27 @@ describe('parseTime', () => {
 
   it('rejects anything else', () => {
     for (const bad of ['', 'abc', '1:5', '1:60', '1:', ':05', '-1:00', '1:05:', '1.5:00', '1:2:3']) expect(parseTime(bad)).toBeNull();
+  });
+});
+
+describe('outOfRange', () => {
+  it('lists checkpoints at or after the end of the video, and nothing while the duration is unknown', () => {
+    const p: Project = {
+      ...video(95),
+      interactions: [
+        { id: 'a', type: 'text', time: 30, order: 1, promptHtml: '' },
+        { id: 'b', type: 'text', time: 95, order: 2, promptHtml: '' },
+        { id: 'c', type: 'link', time: 180, order: 3, promptHtml: '', url: '' },
+        { id: 'd', type: 'text', time: 94.5, order: 4, promptHtml: '' },
+      ],
+    };
+    expect(outOfRange(p)).toEqual(['b', 'c']);
+    expect(outOfRange({ ...p, duration: 0 })).toEqual([]);
+    expect(outOfRange(video(95))).toEqual([]);
+  });
+
+  it('an unrelated edit keeps an out-of-range time as it is (flagged, never silently clamped)', () => {
+    const p: Project = { ...video(95), interactions: [{ id: 'c', type: 'text', time: 180, order: 1, promptHtml: '' }] };
+    expect(updateInteraction(p, 'c', { promptHtml: '<p>x</p>' }).interactions[0]!.time).toBe(180);
   });
 });

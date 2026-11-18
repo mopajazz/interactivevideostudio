@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Project } from '@ivt/schema';
 import { newProject, isSetupComplete } from '../project';
+import { createAssetQueue, type AssetQueueState } from './assetQueue';
 import { createAutosave } from './autosave';
 import { deleteAsset, loadSession, putAsset, replaceProject, saveProject, saveStep, type Step } from './projectStore';
 
@@ -24,16 +25,20 @@ export function usePersistence() {
   const latest = useRef<Snapshot | null>(null);
   latest.current = state;
   const available = status !== 'unavailable';
+  // Image writes are kept apart from the project save: a failed one stays reported (a later successful project
+  // save does not hide it) and is retried with every autosave until it gets through.
+  const [images, setImages] = useState<AssetQueueState>({ pending: false, failed: false });
+  const assetQueue = useMemo(() => createAssetQueue({ put: putAsset, del: deleteAsset }, setImages), []);
 
   const autosave = useMemo(
     () =>
       createAutosave<{ snap: Snapshot; n: number }>(({ snap, n }) => {
-        Promise.all([saveProject(snap.project), saveStep(snap.step)]).then(
+        assetQueue.flush().then(() => Promise.all([saveProject(snap.project), saveStep(snap.step)])).then(
           () => { if (changes.current === n) setStatus('saved'); },
           () => setStatus('error'),
         );
       }),
-    [],
+    [assetQueue],
   );
 
   useEffect(() => {
@@ -98,25 +103,25 @@ export function usePersistence() {
       autosave.cancel(); // a pending save of the old project must not land after the new one
       try {
         await replaceProject(project, assets);
+        assetQueue.clear(); // the new project's images were written with it; old pending writes no longer apply
       } catch (e) {
         if (latest.current) schedule(latest.current);
         throw e;
       }
     }
     setState({ project, step: 1, assets });
-  }, [available, autosave, schedule]);
+  }, [available, autosave, schedule, assetQueue]);
 
   /**
-   * Adds an image to the in-memory assets (which export reads) and stores it straight away. A storage failure
-   * shows the save error; the image stays usable in memory and in an export.
+   * Adds an image to the in-memory assets (which export reads) and queues it for storage. If the write fails it is
+   * reported (`imageError`) and retried with every autosave; the image stays usable in memory meanwhile.
    */
   const addAsset = useCallback(async (id: string, blob: Blob) => {
     setState((s) => (s ? { ...s, assets: new Map(s.assets).set(id, blob) } : s));
-    if (!available) return;
-    await putAsset(id, blob).catch(() => setStatus('error'));
-  }, [available]);
+    if (available) await assetQueue.put(id, blob);
+  }, [available, assetQueue]);
 
-  /** Drops an image no interaction uses any more, from memory and from storage. */
+  /** Drops an image no interaction uses any more, from memory and (queued, retried like a write) from storage. */
   const removeAsset = useCallback(async (id: string) => {
     setState((s) => {
       if (!s?.assets.has(id)) return s;
@@ -124,9 +129,14 @@ export function usePersistence() {
       assets.delete(id);
       return { ...s, assets };
     });
-    if (!available) return;
-    await deleteAsset(id).catch(() => setStatus('error'));
-  }, [available]);
+    if (available) await assetQueue.remove(id);
+  }, [available, assetQueue]);
 
-  return { state, status, loadIssue, hasBackup, setHasBackup, updateProject, setStep, replace, addAsset, removeAsset };
+  return {
+    state, status, loadIssue, hasBackup, setHasBackup, updateProject, setStep, replace, addAsset, removeAsset,
+    /** An image write or removal failed and is still waiting to be retried. */
+    imageError: images.failed,
+    /** Image writes not yet in storage (including failed ones); export waits for these. */
+    assetsPending: images.pending,
+  };
 }

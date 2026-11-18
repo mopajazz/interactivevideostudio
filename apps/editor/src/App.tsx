@@ -26,7 +26,7 @@ const LOAD_NOTICE: Record<Exclude<LoadIssue, null>, string> = {
 const titleOf = (p: Project) => p.title || 'Untitled project';
 
 export function App({ fetchVideoInfo, adapters = youTubeAdapters }: { fetchVideoInfo?: FetchVideoInfo; adapters?: VideoAdapters }) {
-  const { state, status, loadIssue, hasBackup, setHasBackup, updateProject, setStep, replace, addAsset, removeAsset } = usePersistence();
+  const { state, status, loadIssue, hasBackup, setHasBackup, updateProject, setStep, replace, addAsset, removeAsset, imageError, assetsPending } = usePersistence();
   const [pending, setPending] = useState<Pending | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
   // Bumped on start-new/import so Setup starts with fresh field state.
@@ -124,6 +124,8 @@ export function App({ fetchVideoInfo, adapters = youTubeAdapters }: { fetchVideo
           project={project}
           assets={state.assets}
           saveStatus={status}
+          imageError={imageError}
+          assetsPending={assetsPending}
           onImported={onImported}
           onNotice={setNotice}
           onStartNew={(trigger) => {

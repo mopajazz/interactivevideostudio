@@ -172,6 +172,7 @@ export function Interactions({ project, onChange, assets, addAsset, removeAsset,
           it={selected}
           name={checkpointName(project, selected)}
           maxTime={maxTime(project)}
+          duration={project.duration}
           image={selected.imageAssetId ? assets.get(selected.imageAssetId) : undefined}
           onPatch={onPatch}
           onTime={onTime}
