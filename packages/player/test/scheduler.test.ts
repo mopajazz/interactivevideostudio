@@ -12,6 +12,10 @@ describe('InteractionScheduler', () => {
     const s = new InteractionScheduler([mk('b', 5, 2), mk('a', 5, 1)], 100);
     expect(s.due(4, 6).map((i) => i.id)).toEqual(['a', 'b']);
   });
+  it('orders by time first when a seek jumps several checkpoints', () => {
+    const s = new InteractionScheduler([mk('A', 3, 5), mk('B', 7, 1)], 100);
+    expect(s.due(0, 10).map((i) => i.id)).toEqual(['A', 'B']);
+  });
   it('uses prev < time <= cur', () => {
     const s = new InteractionScheduler([mk('a', 5)], 100);
     expect(s.due(5, 6)).toEqual([]);

@@ -14,7 +14,7 @@ export class InteractionScheduler {
   due(prev: number, cur: number): Interaction[] {
     return this.items
       .filter((i) => i.time > prev && i.time <= cur && !this.seen.has(i.id))
-      .sort((a, b) => a.order - b.order);
+      .sort((a, b) => a.time - b.time || a.order - b.order);
   }
 
   markSeen(id: string): void {
