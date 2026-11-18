@@ -1,4 +1,5 @@
 import type { Project } from './index';
+import { OPTIONAL_FLAGS } from './settings';
 
 const TYPES = ['multipleChoice', 'trueFalse', 'text', 'link', 'image'];
 
@@ -30,6 +31,9 @@ export function validateProject(p: unknown): { ok: true; project: Project } | { 
     if (typeof p.settings.disableForwardScrubbing !== 'boolean') errors.push('settings.disableForwardScrubbing must be a boolean');
     const m = p.settings.masteryPercent;
     if (!isNum(m) || m > 100) errors.push('settings.masteryPercent must be a number between 0 and 100');
+    for (const k of OPTIONAL_FLAGS) {
+      if (p.settings[k] !== undefined && typeof p.settings[k] !== 'boolean') errors.push(`settings.${k} must be true or false when present`);
+    }
   }
 
   if (!Array.isArray(p.interactions)) {

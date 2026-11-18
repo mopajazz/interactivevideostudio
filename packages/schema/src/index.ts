@@ -27,7 +27,16 @@ export interface Project {
   videoId: string;
   /** Video length in seconds; 0 until known. */
   duration: number;
-  settings: { disableForwardScrubbing: boolean; masteryPercent: number };
+  settings: {
+    disableForwardScrubbing: boolean;
+    masteryPercent: number;
+    /** The author ticked "I've checked that this video has captions". A reminder only: it never blocks export. */
+    captionsConfirmed?: boolean;
+    /** After a wrong check, the learner may choose again; the last checked answer is the one scored. */
+    allowRetry?: boolean;
+    /** After a check, the card shows which choice(s) are correct. */
+    showSolution?: boolean;
+  };
   interactions: Interaction[];
 }
 
@@ -40,3 +49,4 @@ export interface SuspendState {
 export { parseYouTubeId } from './youtube';
 export { sanitizeHtml } from './sanitize';
 export { validateProject, exportBlockers } from './validate';
+export { resolveSettings, type ResolvedSettings } from './settings';
