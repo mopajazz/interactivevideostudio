@@ -3,6 +3,7 @@ import { createServer, type Server } from 'node:http';
 import { dirname, extname, join, normalize } from 'node:path';
 import JSZip from 'jszip';
 import { test, expect } from '@playwright/test';
+import { expectNoAxeViolations } from './axe';
 import { PNG, addAt, drawer, openInteractions } from './helpers';
 
 const TYPES: Record<string, string> = {
@@ -81,6 +82,11 @@ test('an exported package unzips, loads in a fake LMS and starts the player with
     await expect(lms.locator('link[rel="stylesheet"][href="player.css"]')).toHaveCount(1);
     expect(await lms.evaluate(() => [...document.styleSheets].some((s) => s.href?.endsWith('player.css') && s.cssRules.length > 0))).toBe(true);
     expect(errors).toEqual([]);
+    // The launch page as exported (title, language, the player's load-error state) passes the same axe scan, and the
+    // playbar, which can do nothing now, is out of the Tab order.
+    await expectNoAxeViolations(lms);
+    await lms.keyboard.press('Tab');
+    await expect(lms.getByRole('alert').getByRole('link', { name: 'Watch on YouTube' })).toBeFocused();
     await lms.close();
   } finally {
     await new Promise((resolve) => server.close(resolve));
