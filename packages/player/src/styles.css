@@ -98,6 +98,19 @@
 .ivp-choice:has(input:disabled) { cursor: default; }
 .ivp-choice input { width: 1.25rem; height: 1.25rem; margin: 0; flex: none; accent-color: var(--ivp-primary); }
 .ivp-choice input:focus-visible { outline: none; }
+/* Show solution: the correct choice says so in words, inside the choice (part of its name), not by color alone. */
+.ivp-solution-mark {
+  flex: none;
+  margin-left: auto;
+  padding: 0.125rem 0.5rem;
+  border: 2px solid var(--ivp-ok-ink);
+  border-radius: 999px;
+  background: var(--ivp-ok-bg);
+  color: var(--ivp-ok-ink);            /* 7.3:1 on --ivp-ok-bg */
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+.ivp-solution { margin: 0.25rem 0 0; font-weight: 700; }
 
 .ivp-choice-error { margin: 0.5rem 0 0; font-weight: 600; color: var(--ivp-bad-ink); } /* 8.4:1 on white */
 .ivp-choice-error[hidden] { display: none; }
@@ -209,6 +222,6 @@
 }
 
 @media (forced-colors: active) {
-  .ivp-btn, .ivp-choice, .ivp-card, .ivp-error { border: 2px solid CanvasText; }
+  .ivp-btn, .ivp-choice, .ivp-card, .ivp-error, .ivp-solution-mark { border: 2px solid CanvasText; }
   .ivp-cc[aria-pressed="true"] { outline: 3px solid Highlight; }
 }

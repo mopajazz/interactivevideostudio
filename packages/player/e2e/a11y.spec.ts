@@ -153,6 +153,39 @@ test.describe('axe: no WCAG 2.2 A/AA violations', () => {
   });
 });
 
+for (const colorScheme of ['light', 'dark'] as const) {
+  // The player has one color theme; it is scanned with both system settings so neither can break it.
+  test.describe(`axe, retry and show-solution states (system ${colorScheme})`, () => {
+    test.use({ colorScheme });
+
+    test('a question card with "Try again" showing, and after pressing it', async ({ page }) => {
+      await open(page, '&retry=1');
+      await play(page);
+      await advance(page, 5);
+      await answer(page, 'Green');
+      await expect(dialog(page).getByRole('button', { name: 'Try again' })).toBeVisible();
+      await expectNoAxeViolations(page);
+      await dialog(page).getByRole('button', { name: 'Try again' }).click();
+      await expect(dialog(page).getByRole('button', { name: 'Check answer' })).toBeVisible();
+      await expectNoAxeViolations(page);
+    });
+
+    test('a card with the solution revealed, after a wrong and after a correct check', async ({ page }) => {
+      await open(page, '&solution=1');
+      await play(page);
+      await advance(page, 5);
+      await answer(page, 'Green');
+      await expect(dialog(page).locator('.ivp-solution-mark')).toHaveText('Correct answer');
+      await expectNoAxeViolations(page);
+      await dialog(page).getByRole('button', { name: 'Continue' }).click();
+      await advance(page, 5);
+      await answer(page, 'False');
+      await expect(dialog(page).locator('.ivp-solution-mark')).toBeVisible();
+      await expectNoAxeViolations(page);
+    });
+  });
+}
+
 test.describe('reflow at 320 CSS px (the same as 1280 px at 400% zoom)', () => {
   test.use({ viewport: { width: 320, height: 640 } });
 
@@ -205,6 +238,31 @@ test.describe('forced colors (Windows High Contrast)', () => {
     await page.keyboard.press('Tab');
     await expect(submit).toBeFocused();
     expect((await edge(submit, 'outline')).visible, 'Submit focus ring').toBe(true);
+  });
+});
+
+test.describe('forced colors: the solution marker', () => {
+  test.use({ forcedColors: 'active' });
+
+  test('"Correct answer" stays visible as text with its own edge, so it does not rely on color', async ({ page }) => {
+    await open(page);
+    await play(page);
+    await advance(page, 5);
+    await answer(page, 'Green');
+    const mark = dialog(page).locator('.ivp-choice', { hasText: 'Blue' }).locator('.ivp-solution-mark');
+    await expect(mark).toBeVisible();
+    await expect(mark).toHaveText('Correct answer');
+    const s = await mark.evaluate((el) => {
+      const c = getComputedStyle(el);
+      return { border: c.borderTopStyle, width: parseFloat(c.borderTopWidth), color: c.color, borderColor: c.borderTopColor, bg: c.backgroundColor };
+    });
+    expect(s.border).toBe('solid');
+    expect(s.width).toBeGreaterThanOrEqual(1);
+    // In forced colors the text and its border take the system text color, which differs from the background.
+    expect(s.color).toBe(s.borderColor);
+    expect(s.color).not.toBe(s.bg);
+    // Only the correct choice carries it.
+    await expect(dialog(page).locator('.ivp-choice', { hasText: 'Green' }).locator('.ivp-solution-mark')).toHaveCount(0);
   });
 });
 

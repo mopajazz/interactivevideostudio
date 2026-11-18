@@ -1,4 +1,4 @@
-import type { Interaction, Project, SuspendState } from '@ivt/schema';
+import { resolveSettings, type Interaction, type Project, type SuspendState } from '@ivt/schema';
 import type { VideoAdapter } from './adapter';
 import { YouTubeAdapter } from './YouTubeAdapter';
 import { InteractionScheduler } from './scheduler';
@@ -43,12 +43,14 @@ export function mount(el: HTMLElement, project: Project, opts: MountOptions = {}
   const questions = items.filter(isQuestion);
   const assetUrl = opts.assetUrl ?? ((id: string) => `assets/${encodeURIComponent(id)}`);
 
+  const settings = resolveSettings(project.settings);
+
   const initial = opts.initial;
-  const score = new ScoreState(items, project.settings.masteryPercent);
+  const score = new ScoreState(items, settings.masteryPercent);
   for (const [id, ids] of Object.entries(initial?.answers ?? {})) score.setAnswer(id, ids);
   let result: Result | null = initial?.submitted ? score.submit() : null;
   const resumeFurthest = initial && Number.isFinite(initial.furthest) && initial.furthest >= 0 ? initial.furthest : undefined;
-  const guard = new ScrubGuard({ enabled: project.settings.disableForwardScrubbing && !result, furthest: resumeFurthest });
+  const guard = new ScrubGuard({ enabled: settings.disableForwardScrubbing && !result, furthest: resumeFurthest });
 
   let scheduler: InteractionScheduler | null = null;
   let prev = -1; // so a checkpoint at time 0 is due on the first sample
@@ -139,6 +141,8 @@ export function mount(el: HTMLElement, project: Project, opts: MountOptions = {}
     const card = buildCard(it, {
       announcer,
       assetUrl,
+      allowRetry: settings.allowRetry,
+      showSolution: settings.showSolution,
       onAnswer: (ids) => { score.setAnswer(it.id, ids); progress(); },
       onDone: showNext,
     });
@@ -154,7 +158,7 @@ export function mount(el: HTMLElement, project: Project, opts: MountOptions = {}
       scored: questions.length > 0,
       answered: questions.filter((q) => q.id in answers).length,
       total: questions.length,
-      masteryPercent: project.settings.masteryPercent,
+      masteryPercent: settings.masteryPercent,
       result,
       announcer,
       submit: () => {

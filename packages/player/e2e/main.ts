@@ -1,6 +1,6 @@
 // Test and manual-check page. ?adapter=fake swaps in FakeAdapter (exposed as window.__fake).
 // Other params: fixture=<name>, lock=1 (disable forward scrubbing), duration=<s>, initial=<json SuspendState>,
-// escape=1 (pass an onEscape callback).
+// escape=1 (pass an onEscape callback), retry=1|0 and solution=1|0 (set allowRetry / showSolution; absent = default).
 import { FakeAdapter } from '../src/fakeAdapter';
 import { mount } from '../src/mount';
 import { fixtures } from './fixtures';
@@ -8,6 +8,8 @@ import { fixtures } from './fixtures';
 const qs = new URLSearchParams(location.search);
 const project = (fixtures[qs.get('fixture') ?? 'scored'] ?? fixtures.scored!)();
 if (qs.get('lock') === '1') project.settings.disableForwardScrubbing = true;
+if (qs.has('retry')) project.settings.allowRetry = qs.get('retry') === '1';
+if (qs.has('solution')) project.settings.showSolution = qs.get('solution') === '1';
 
 const w = window as any;
 let adapter: FakeAdapter | undefined;

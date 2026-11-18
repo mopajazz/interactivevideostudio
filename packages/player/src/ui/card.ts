@@ -14,8 +14,12 @@ export const KIND_LABEL: Record<Interaction['type'], string> = {
 export type CardOptions = {
   announcer: Announcer;
   assetUrl: (id: string) => string;
-  /** Called once when the learner commits an answer to a scored question. */
+  /** Called each time the learner checks an answer to a scored question; the last call is the answer that counts. */
   onAnswer: (choiceIds: string[]) => void;
+  /** After a wrong check, offer "Try again" (no limit on tries). */
+  allowRetry: boolean;
+  /** After a check, mark the correct choice(s) in text and name them in the feedback (see `reveal` below). */
+  showSolution: boolean;
   onDone: () => void;
 };
 
@@ -114,6 +118,8 @@ function buildQuestion(it: Interaction, o: CardOptions, actions: HTMLElement, co
   inputs.forEach((i) => i.addEventListener('change', clearEmpty));
 
   const check = button('Check answer', 'ivp-btn ivp-btn-primary');
+  const retry = button('Try again', 'ivp-btn');
+
   check.addEventListener('click', () => {
     const chosen = inputs.filter((i) => i.checked).map((i) => i.value);
     if (chosen.length === 0) {
@@ -128,16 +134,50 @@ function buildQuestion(it: Interaction, o: CardOptions, actions: HTMLElement, co
     o.onAnswer(chosen);
 
     const ok = chosen.length === correctIds.size && chosen.every((id) => correctIds.has(id));
+    const canRetry = o.allowRetry && !ok;
+    // The solution is revealed only when the learner can't try again: after a correct check, or after any check when
+    // retry is off. With retry on there is no limit on tries, so a wrong check never reveals it and the solution shows
+    // only after a correct check (otherwise "Try again" would just mean copying the answer).
+    const reveal = o.showSolution && !canRetry;
+
     feedback.classList.add(ok ? 'is-correct' : 'is-incorrect');
     const verdict = ok ? 'Correct' : 'Incorrect';
     feedback.append(h('p', 'ivp-verdict', verdict));
     const notes = choices
       .filter((c) => chosen.includes(c.id) && c.feedbackHtml)
       .map((c) => feedback.appendChild(authorHtml('div', 'ivp-feedback-text', c.feedbackHtml)).textContent?.trim() ?? '');
+    const said = [`${verdict}.`, ...notes];
+    if (reveal) {
+      const names: string[] = [];
+      inputs.forEach((input, n) => {
+        if (!correctIds.has(input.value)) return;
+        const label = input.closest('label')!;
+        // Text inside the choice (so it is part of its name and survives forced colors), never color alone.
+        label.append(h('span', 'ivp-solution-mark', 'Correct answer'));
+        names.push(label.querySelector('.ivp-choice-text')?.textContent?.trim() || `Choice ${n + 1}`);
+      });
+      // Plain text built from the sanitized choices' text: nothing here is parsed as HTML.
+      const line = `${names.length > 1 ? 'Correct answers' : 'Correct answer'}: ${names.join(', ')}.`;
+      feedback.append(h('p', 'ivp-solution', line));
+      said.push(line);
+    }
     feedback.hidden = false;
-    o.announcer.say([`${verdict}.`, ...notes].join(' '));
-    check.replaceWith(cont);
+    o.announcer.say(said.join(' '));
+    check.replaceWith(...(canRetry ? [retry, cont] : [cont]));
     cont.focus();
+  });
+
+  // Back to the unchecked state: choices enabled and cleared, no verdict, "Check answer" again. The held answer stays
+  // the last one checked until the learner checks a new one.
+  retry.addEventListener('click', () => {
+    inputs.forEach((i) => { i.disabled = false; i.checked = false; });
+    feedback.hidden = true;
+    feedback.className = 'ivp-feedback';
+    feedback.replaceChildren();
+    inputs[0]?.focus(); // before the focused "Try again" goes, so focus never drops out of the card
+    retry.remove();
+    cont.replaceWith(check);
+    o.announcer.say('Try again. Choose an answer.');
   });
   actions.append(check);
   return frag;
