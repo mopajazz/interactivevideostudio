@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { VideoAdapter } from '@ivt/player';
+import { API_LOAD_FAILED, type VideoAdapter } from '@ivt/player';
 import type { Interaction, InteractionType, Project } from '@ivt/schema';
 import { Drawer } from '../components/Drawer';
 import { PreviewDialog } from '../components/PreviewDialog';
@@ -12,7 +12,7 @@ import {
 import type { Step } from '../storage/projectStore';
 import { newAssetId } from '../storage/images';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
-import { IconArrowLeft, IconArrowRight, IconEye } from '../ui/icons';
+import { IconAlert, IconArrowLeft, IconArrowRight, IconEye } from '../ui/icons';
 import type { VideoAdapters } from '../video/adapters';
 
 type Props = {
@@ -27,6 +27,14 @@ type Props = {
   openCheckpoint?: string | null;
 };
 
+/** What the author sees when their video player reports an error. Checkpoints can still be added and timed. */
+export function videoErrorMessage(code: unknown): string {
+  const cause = code === API_LOAD_FAILED
+    ? "The YouTube player couldn't load. Check your connection, or whether YouTube is blocked on this network."
+    : "This video can't be played here right now.";
+  return `${cause} You can still add checkpoints and type their times.`;
+}
+
 type Focus = 'drawer' | 'timeline' | 'preview' | { node: string } | HTMLElement | null;
 
 /** Step 2: tools across the top of the video, the scrubber, the timeline of checkpoints and the settings drawer. */
@@ -37,6 +45,7 @@ export function Interactions({ project, onChange, assets, addAsset, removeAsset,
   const [playing, setPlaying] = useState(false);
   const [deleting, setDeleting] = useState<{ id: string; trigger: HTMLElement } | null>(null);
   const [previewing, setPreviewing] = useState(false);
+  const [videoError, setVideoError] = useState('');
   const host = useRef<HTMLDivElement>(null);
   const adapter = useRef<VideoAdapter | null>(null);
   const timeline = useRef<HTMLDivElement>(null);
@@ -52,10 +61,12 @@ export function Interactions({ project, onChange, assets, addAsset, removeAsset,
   useEffect(() => {
     const el = host.current!;
     el.inert = true;
+    setVideoError('');
     const a = adapters.author(el, latest.current);
     adapter.current = a;
     a.on('time', (t: number) => setTime(t));
     a.on('state', (s: string) => setPlaying(s === 'playing'));
+    a.on('error', (code: unknown) => setVideoError(videoErrorMessage(code)));
     return () => {
       a.destroy();
       adapter.current = null;
@@ -156,6 +167,10 @@ export function Interactions({ project, onChange, assets, addAsset, removeAsset,
           <button ref={previewButton} type="button" className="btn btn-secondary btn-small" onClick={openPreview}>
             <IconEye />Preview as learner
           </button>
+        </div>
+        {/* Always rendered (never display:none), so a player failure is announced when it happens. */}
+        <div role="status" className="field-status" data-testid="scrubber-status">
+          {videoError && <p className="msg msg-error"><IconAlert />{videoError}</p>}
         </div>
         <Timeline
           ref={timeline}

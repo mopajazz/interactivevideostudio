@@ -8,19 +8,25 @@ type Props = { project: Project; assets: Map<string, Blob>; adapters: VideoAdapt
 
 /**
  * The real learner player (@ivt/player `mount`) in a modal <dialog>, like ConfirmDialog: the page behind is inert and
- * Escape closes it (the player keeps Escape for itself while a question is open). Unmounting destroys the player.
- * The caller returns focus to the button that opened it.
+ * Escape closes it, also while a card is open (the player passes Escape on through `onEscape`, without ever dismissing
+ * a question itself). Unmounting destroys the player. The caller returns focus to the button that opened it.
  */
 export function PreviewDialog({ project, assets, adapters, onClose }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const close = useRef<HTMLButtonElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     const d = ref.current!;
     if (!d.open) d.showModal();
     const urls = new Map([...assets].map(([id, blob]) => [id, URL.createObjectURL(blob)]));
-    const player = mount(stage.current!, project, { adapter: adapters.preview(project), assetUrl: (id) => urls.get(id) ?? '' });
+    const player = mount(stage.current!, project, {
+      adapter: adapters.preview(project),
+      assetUrl: (id) => urls.get(id) ?? '',
+      onEscape: () => onCloseRef.current(),
+    });
     close.current?.focus();
     return () => {
       player.destroy();

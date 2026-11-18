@@ -129,31 +129,30 @@ export function Finish({ project, onChange, assets, assetQueue, onGo, onGoToChec
 
       <section className="finish-section" aria-labelledby="export-heading">
         <h3 id="export-heading" className="section-title">Export</h3>
-        {blocked ? (
-          <>
-            <p id="export-reason" className="msg msg-error">
-              <IconAlert />{blockers.length === 1 ? 'Fix the item below to export.' : `Fix the ${blockers.length} items below to export.`}
-            </p>
-            <ul className="blockers" aria-label="Fix before exporting">
-              {blockers.map((b, i) => (
-                <li key={`${b.interactionId ?? ''}:${i}`} className="blocker">
-                  <span>{b.message}</span>
-                  {b.interactionId && (
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-small"
-                      aria-label={`Go to checkpoint: ${nameOf(b.interactionId)}`}
-                      onClick={() => onGoToCheckpoint(b.interactionId!)}
-                    >
-                      Go to checkpoint<IconArrowRight />
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </>
-        ) : (
-          <p id="export-reason" className="msg msg-ok"><IconCheck />Ready to export.</p>
+        {/* One always-rendered polite live region (never remounted or display:none), so a change in what blocks
+            the export is announced. */}
+        <p id="export-reason" role="status" className={`msg ${blocked ? 'msg-error' : 'msg-ok'}`}>
+          {blocked ? <IconAlert /> : <IconCheck />}
+          {!blocked ? 'Ready to export.' : blockers.length === 1 ? 'Fix the item below to export.' : `Fix the ${blockers.length} items below to export.`}
+        </p>
+        {blocked && (
+          <ul className="blockers" aria-label="Fix before exporting">
+            {blockers.map((b, i) => (
+              <li key={`${b.interactionId ?? ''}:${i}`} className="blocker">
+                <span>{b.message}</span>
+                {b.interactionId && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-small"
+                    aria-label={`Go to checkpoint: ${nameOf(b.interactionId)}`}
+                    onClick={() => onGoToCheckpoint(b.interactionId!)}
+                  >
+                    Go to checkpoint<IconArrowRight />
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
         )}
         <div className="export-row">
           <button

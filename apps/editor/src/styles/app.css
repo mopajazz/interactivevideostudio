@@ -338,7 +338,7 @@ body {
 .tool-image { background: var(--tool-image); box-shadow: 0 var(--press-depth) 0 var(--tool-image-edge); }
 
 /* Step 2: tools, video, scrubber, timeline, drawer. Colors only from tokens.css (documented pairs). */
-.stage { display: grid; gap: 0.875rem; }
+.stage { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.875rem; } /* never wider than the panel (reflow) */
 
 /* Tool buttons: chunky, color-coded (tool fill + --c-on-tool text, documented >= 5.4:1), icon + words. */
 .tools { display: flex; flex-wrap: wrap; gap: 0.625rem; }
@@ -368,8 +368,10 @@ body {
 }
 .author-video iframe, .author-video > div { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 
+/* The empty player-status region takes no space (it stays rendered so a later message is announced). */
+.stage > .field-status:empty { margin-top: -0.875rem; }
 .stage-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
-.scrubber { display: flex; flex: 1 1 20rem; align-items: center; gap: 0.75rem; min-width: 0; }
+.scrubber { display: flex; flex: 1 1 20rem; flex-wrap: wrap; align-items: center; gap: 0.75rem; min-width: 0; } /* the time wraps below on narrow screens */
 .scrub-range { flex: 1; min-width: 6rem; height: var(--target); accent-color: var(--c-primary); }
 .scrub-time { font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
 

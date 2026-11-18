@@ -456,19 +456,6 @@ test.describe('preview as learner', () => {
     expect(await fake(page, 'getCurrentTime()')).toBe(50);
   });
 
-  test('Escape does not close the preview while a question is waiting for an answer', async ({ page }) => {
-    await addAt(page, 'True/False', 5);
-    await page.getByRole('button', { name: 'Preview as learner' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Preview as learner' });
-    await dialog.getByRole('button', { name: 'Play' }).click();
-    await fake(page, 'advance(6)');
-    const card = dialog.getByRole('dialog', { name: 'True or false' });
-    await expect(card).toBeVisible();
-    await page.keyboard.press('Escape');
-    await expect(card).toBeVisible();
-    await expect(dialog).toBeVisible();
-  });
-
   test('Escape closes the preview when no question is open', async ({ page }) => {
     await page.getByRole('button', { name: 'Preview as learner' }).click();
     await expect(page.getByRole('dialog', { name: 'Preview as learner' })).toBeVisible();

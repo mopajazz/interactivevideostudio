@@ -116,6 +116,7 @@ export function App({ fetchVideoInfo, adapters = youTubeAdapters }: { fetchVideo
   const discardBackup = async () => {
     try {
       await discardCorruptBackup();
+      focusAfter.current = document.getElementById('main'); // the button is about to go: don't let focus drop to body
       setHasBackup(false);
       setNotice({ tone: 'ok', text: 'Discarded the damaged data.' });
     } catch {
