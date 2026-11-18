@@ -52,7 +52,8 @@ export function validateProject(p: unknown): { ok: true; project: Project } | { 
       if (it.decorative !== undefined && typeof it.decorative !== 'boolean') errors.push(`${at}.decorative must be a boolean`);
       if (it.url !== undefined) {
         if (!isStr(it.url)) errors.push(`${at}.url must be a string`);
-        else if (!safeUrl(it.url)) errors.push(`${at}.url must be an http, https or mailto URL`);
+        // '' is an unfilled draft (exportBlockers reports it); anything else must be a safe scheme.
+        else if (it.url !== '' && !safeUrl(it.url)) errors.push(`${at}.url must be an http, https or mailto URL`);
       }
       if (it.choices !== undefined) {
         if (!Array.isArray(it.choices)) return void errors.push(`${at}.choices must be an array`);
@@ -79,6 +80,9 @@ export function exportBlockers(p: Project): string[] {
   for (const it of p.interactions) {
     if (it.type === 'image' && !it.decorative && !(typeof it.alt === 'string' && it.alt.trim())) {
       out.push(`Image at ${it.time}s needs alt text or must be marked decorative`);
+    }
+    if (it.type === 'link' && !(typeof it.url === 'string' && it.url.trim())) {
+      out.push(`Link at ${it.time}s needs a web address`);
     }
     if (it.type === 'multipleChoice' || it.type === 'trueFalse') {
       const choices = Array.isArray(it.choices) ? it.choices : [];

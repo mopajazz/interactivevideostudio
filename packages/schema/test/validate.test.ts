@@ -131,6 +131,14 @@ describe('validateProject deep checks', () => {
   it.each(['https://x.org', 'http://x.org/a', 'mailto:a@b.org'])('accepts link url %s', (url) => {
     expect(bad((p) => Object.assign(p.interactions[0], { type: 'link', url })).ok).toBe(true);
   });
+
+  it('accepts an empty link url (an unfilled draft survives autosave)', () => {
+    expect(bad((p) => Object.assign(p.interactions[0], { type: 'link', url: '' })).ok).toBe(true);
+  });
+
+  it('still scheme-checks a whitespace-only link url', () => {
+    expect(bad((p) => Object.assign(p.interactions[0], { type: 'link', url: '   ' })).ok).toBe(false);
+  });
 });
 
 describe('exportBlockers'
@@ -167,5 +175,15 @@ describe('exportBlockers'
       { id: 'q5', type: 'multipleChoice', time: 4, order: 4, promptHtml: '', choices: [{ id: 'a', html: 'a', correct: true }] },
     );
     expect(exportBlockers(p)).toHaveLength(3);
+  });
+
+  it('reports one readable message per link interaction with an empty url', () => {
+    const p = base();
+    p.interactions.push(
+      { id: 'l1', type: 'link', time: 7, order: 1, promptHtml: '', url: '' },
+      { id: 'l2', type: 'link', time: 8, order: 2, promptHtml: '' },
+      { id: 'l3', type: 'link', time: 9, order: 3, promptHtml: '', url: 'https://x.org' },
+    );
+    expect(exportBlockers(p)).toEqual(['Link at 7s needs a web address', 'Link at 8s needs a web address']);
   });
 });
