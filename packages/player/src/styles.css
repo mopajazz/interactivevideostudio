@@ -99,6 +99,9 @@
 .ivp-choice input { width: 1.25rem; height: 1.25rem; margin: 0; flex: none; accent-color: var(--ivp-primary); }
 .ivp-choice input:focus-visible { outline: none; }
 
+.ivp-choice-error { margin: 0.5rem 0 0; font-weight: 600; color: var(--ivp-bad-ink); } /* 8.4:1 on white */
+.ivp-choice-error[hidden] { display: none; }
+.ivp-sentinel { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; }
 .ivp-hint { margin-top: 0.5rem; padding: 0.75rem 1rem; border-radius: 10px; background: #f2f4f8; }
 .ivp-feedback { margin-top: 1rem; padding: 0.75rem 1rem; border-radius: 10px; }
 .ivp-feedback.is-correct, .ivp-result.is-correct { background: var(--ivp-ok-bg); color: var(--ivp-ok-ink); }

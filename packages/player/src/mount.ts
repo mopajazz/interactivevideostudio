@@ -29,6 +29,7 @@ export function mount(el: HTMLElement, project: Project, opts: MountOptions = {}
   const root = h('div', 'ivp-root');
   const stage = h('div', 'ivp-stage');
   const video = h('div', 'ivp-video');
+  video.inert = true; // the embed is never a keyboard or pointer target: our playbar is the only control
   const layer = h('div', 'ivp-layer');
   layer.hidden = true;
   stage.append(video, layer);
@@ -87,6 +88,9 @@ export function mount(el: HTMLElement, project: Project, opts: MountOptions = {}
       playbar.setTime(snap, duration());
       return false;
     }
+    // A rate-limited snap returns null too: a sample still ahead of furthest is stale (the player has not
+    // landed yet), so it must not move the slider or trigger checkpoints the learner has not watched.
+    if (guard.isAhead(t)) return false;
     playbar.setTime(t, duration());
     if (Math.floor(guard.furthest) > reportedFloor) {
       reportedFloor = Math.floor(guard.furthest);
@@ -106,7 +110,7 @@ export function mount(el: HTMLElement, project: Project, opts: MountOptions = {}
   const atEnd = () => duration() > 0 && adapter.getCurrentTime() >= duration() - END_SLACK;
 
   const show = (card: HTMLElement, onEscape?: () => void) => {
-    closeModal = openModal(layer, card, { background: [video, playbar.el], onEscape });
+    closeModal = openModal(layer, card, { background: [playbar.el], onEscape });
   };
   const hide = () => { closeModal?.(); closeModal = null; };
 

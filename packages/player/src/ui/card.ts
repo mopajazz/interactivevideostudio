@@ -101,11 +101,27 @@ function buildQuestion(it: Interaction, o: CardOptions, actions: HTMLElement, co
   feedback.hidden = true;
   frag.append(feedback);
 
+  // Visible prompt for an empty Check answer, tied to the choices. Not a live region: the Announcer speaks it once.
+  const empty = h('p', 'ivp-choice-error');
+  empty.id = uid('empty');
+  empty.hidden = true;
+  set.after(empty);
+  const clearEmpty = () => {
+    empty.hidden = true;
+    empty.textContent = '';
+    set.removeAttribute('aria-describedby');
+  };
+  inputs.forEach((i) => i.addEventListener('change', clearEmpty));
+
   const check = button('Check answer', 'ivp-btn ivp-btn-primary');
   check.addEventListener('click', () => {
     const chosen = inputs.filter((i) => i.checked).map((i) => i.value);
     if (chosen.length === 0) {
-      o.announcer.say('Choose an answer first.');
+      const text = 'Choose an answer first.';
+      empty.textContent = text;
+      empty.hidden = false;
+      set.setAttribute('aria-describedby', empty.id);
+      o.announcer.say(text);
       return;
     }
     inputs.forEach((i) => { i.disabled = true; });

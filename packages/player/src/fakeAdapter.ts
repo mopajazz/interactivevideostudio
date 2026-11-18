@@ -10,15 +10,31 @@ export class FakeAdapter implements VideoAdapter {
   destroyed = false;
   private handlers: Record<Ev, Array<(v: any) => void>> = { time: [], state: [], error: [] };
 
-  constructor(private duration = 100) {}
+  /** Last value reported through getCurrentTime() or a 'time' event (for tests). */
+  lastReported = 0;
+  private lagLeft = 0;
+  private stale = 0;
+  private seekLagSamples: number;
+
+  /** `seekLagSamples` (opt-in, default 0): after seekTo, report the old position for that many samples, like a real player. */
+  constructor(private duration = 100, o: { seekLagSamples?: number } = {}) {
+    this.seekLagSamples = o.seekLagSamples ?? 0;
+  }
 
   private emit(ev: Ev, v: unknown) {
     this.handlers[ev].forEach((cb) => cb(v));
   }
   play() { this.playing = true; this.emit('state', 'playing'); }
   pause() { this.playing = false; this.emit('state', 'paused'); }
-  seekTo(s: number) { this.t = Math.min(Math.max(0, s), this.duration); }
-  getCurrentTime() { return this.t; }
+  seekTo(s: number) {
+    if (this.seekLagSamples > 0) { this.stale = this.t; this.lagLeft = this.seekLagSamples; }
+    this.t = Math.min(Math.max(0, s), this.duration);
+  }
+  getCurrentTime() {
+    const v = this.lagLeft > 0 ? (this.lagLeft--, this.stale) : this.t;
+    this.lastReported = v;
+    return v;
+  }
   getDuration() { return this.duration; }
   setRate(r: number) { this.rate = r; }
   setCaptions(on: boolean) { this.captions = on; }
@@ -29,7 +45,7 @@ export class FakeAdapter implements VideoAdapter {
   advance(seconds: number) {
     if (!this.playing) return;
     this.t = Math.min(this.t + seconds, this.duration);
-    this.emit('time', this.t);
+    this.emit('time', this.getCurrentTime());
     if (this.t >= this.duration && this.playing) {
       this.playing = false;
       this.emit('state', 'ended');

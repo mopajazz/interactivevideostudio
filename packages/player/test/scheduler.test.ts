@@ -82,3 +82,32 @@ describe('FakeAdapter end and state helpers', () => {
     expect(states.at(-1)).toBe('buffering');
   });
 });
+
+describe('FakeAdapter seek lag (opt-in)', () => {
+  it('reports the old position for n samples after seekTo', () => {
+    const f = new FakeAdapter(100, { seekLagSamples: 2 });
+    f.play();
+    f.advance(3);
+    f.seekTo(20);
+    expect(f.getCurrentTime()).toBe(3);
+    expect(f.getCurrentTime()).toBe(3);
+    expect(f.getCurrentTime()).toBe(20);
+  });
+  it('time events count as samples and carry the stale value', () => {
+    const f = new FakeAdapter(100, { seekLagSamples: 1 });
+    const times: number[] = [];
+    f.on('time', (t) => times.push(t));
+    f.play();
+    f.advance(3);
+    f.seekTo(20);
+    f.advance(1);
+    f.advance(1);
+    expect(times).toEqual([3, 3, 22]);
+    expect(f.lastReported).toBe(22);
+  });
+  it('default has no lag', () => {
+    const f = new FakeAdapter(100);
+    f.seekTo(20);
+    expect(f.getCurrentTime()).toBe(20);
+  });
+});

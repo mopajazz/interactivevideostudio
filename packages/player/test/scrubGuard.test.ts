@@ -81,3 +81,28 @@ describe('ScrubGuard', () => {
     });
   });
 });
+
+describe('isAhead', () => {
+  it('is true only when enabled and t is past furthest + tolerance', () => {
+    const g = new ScrubGuard({ enabled: true, furthest: 10 });
+    expect(g.isAhead(11.5)).toBe(false);
+    expect(g.isAhead(11.6)).toBe(true);
+    expect(g.isAhead(5)).toBe(false);
+    expect(g.isAhead(NaN)).toBe(false);
+  });
+  it('stays true for a stale sample while a snap is pending', () => {
+    let now = 0;
+    const g = new ScrubGuard({ enabled: true, now: () => now });
+    g.update(3);
+    expect(g.update(20)).toBe(3);
+    now += 100;
+    expect(g.update(20)).toBe(null); // rate-limited...
+    expect(g.isAhead(20)).toBe(true); // ...but still ahead, not an allowed seek
+  });
+  it('is false when disabled or released', () => {
+    expect(new ScrubGuard({ enabled: false, furthest: 0 }).isAhead(99)).toBe(false);
+    const g = new ScrubGuard({ enabled: true, furthest: 0 });
+    g.release();
+    expect(g.isAhead(99)).toBe(false);
+  });
+});

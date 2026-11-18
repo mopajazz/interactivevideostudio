@@ -11,7 +11,7 @@ if (qs.get('lock') === '1') project.settings.disableForwardScrubbing = true;
 const w = window as any;
 let adapter: FakeAdapter | undefined;
 if (qs.get('adapter') === 'fake') {
-  adapter = new FakeAdapter(Number(qs.get('duration') ?? project.duration));
+  adapter = new FakeAdapter(Number(qs.get('duration') ?? project.duration), { seekLagSamples: Number(qs.get('seekLag') ?? 0) });
   w.__fake = adapter;
   w.__results = [];
   w.__progress = [];
@@ -24,3 +24,11 @@ const player = mount(document.getElementById('app')!, project, {
   initial: initial ? JSON.parse(initial) : undefined,
 });
 if (adapter) w.__player = player;
+// Stand-in for the YouTube iframe's own focusable title/logo links: keyboard focus must never reach it.
+if (adapter) {
+  const standIn = document.createElement('a');
+  standIn.href = '#';
+  standIn.className = 'standin-embed-link';
+  standIn.textContent = 'Embed link stand-in';
+  document.querySelector('.ivp-video')?.append(standIn);
+}

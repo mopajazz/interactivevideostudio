@@ -361,3 +361,112 @@ test.describe('YouTubeAdapter in the page (IFrame API intercepted; youtube.com i
     expect(await page.evaluate(() => (window as any).__yt.calls)).toEqual(['play', 'pause']);
   });
 });
+
+test.describe('review fixes', () => {
+  test.describe('focus trap inside an LMS-style iframe', () => {
+    const setup = async (page: Page, fixture: string) => {
+      await page.goto(`/e2e/host.html?adapter=fake&fixture=${fixture}`);
+      const frame = page.frame({ url: /index\.html/ })!;
+      await frame.locator('.ivp-play').click();
+      await frame.evaluate(() => { const f = (window as any).__fake; for (let i = 0; i < 10; i++) f.advance(0.5); });
+      await expect(frame.getByRole('dialog')).toBeVisible();
+      return frame;
+    };
+    const stillInside = async (page: Page, frame: import('@playwright/test').Frame, where: string) => {
+      expect(await page.evaluate(() => document.activeElement?.id), `host focus after ${where}`).toBe('sco');
+      expect(await frame.evaluate(() => !!document.querySelector('[role="dialog"]')?.contains(document.activeElement)), `frame focus after ${where}`).toBe(true);
+    };
+
+    test('Tab and Shift+Tab from every radio, unchecked and checked, stay in the card', async ({ page }) => {
+      const frame = await setup(page, 'three');
+      const names = ['Alpha', 'Bravo', 'Charlie'];
+      for (const checked of [false, true]) {
+        for (const name of names) {
+          for (const key of ['Shift+Tab', 'Tab']) {
+            const radio = frame.getByRole('radio', { name });
+            if (checked) await radio.check(); else await radio.focus();
+            await page.keyboard.press(key);
+            await stillInside(page, frame, `${key} from ${checked ? 'checked' : 'unchecked'} ${name}`);
+          }
+        }
+      }
+      // Entering the group backwards lands on the checked radio; one more Shift+Tab must wrap, not leave.
+      await frame.getByRole('button', { name: 'Check answer' }).focus();
+      await page.keyboard.press('Shift+Tab');
+      await page.keyboard.press('Shift+Tab');
+      await stillInside(page, frame, 'Shift+Tab twice from Check answer');
+    });
+
+    test('Tab and Shift+Tab from every checkbox stay in the card', async ({ page }) => {
+      const frame = await setup(page, 'multi');
+      for (const name of ['2', '3', '4']) {
+        for (const key of ['Shift+Tab', 'Tab']) {
+          await frame.getByRole('checkbox', { name }).focus();
+          await page.keyboard.press(key);
+          await stillInside(page, frame, `${key} from checkbox ${name}`);
+        }
+      }
+    });
+
+    test('Tab cycling never leaves the iframe document', async ({ page }) => {
+      const frame = await setup(page, 'scored');
+      for (let i = 0; i < 8; i++) { await page.keyboard.press('Tab'); await stillInside(page, frame, `Tab ${i}`); }
+      for (let i = 0; i < 8; i++) { await page.keyboard.press('Shift+Tab'); await stillInside(page, frame, `Shift+Tab ${i}`); }
+    });
+  });
+
+  test('a lagging snap-back never opens checkpoints beyond the furthest point', async ({ page }) => {
+    await open(page, '&lock=1&seekLag=2');
+    await play(page);
+    await advance(page, 3);
+    await page.locator('input[type=range]').fill('20');
+    // While the snap is pending the player keeps reporting a time ahead of furthest (3 s).
+    const steps = await page.evaluate(() => {
+      const f = (window as any).__fake;
+      const slider = document.querySelector<HTMLInputElement>('input[type=range]')!;
+      const out: { reported: number; dialog: boolean; slider: number }[] = [];
+      for (let i = 0; i < 6; i++) {
+        f.advance(0.25);
+        out.push({ reported: f.lastReported, dialog: !!document.querySelector('[role="dialog"]'), slider: Number(slider.value) });
+      }
+      return out;
+    });
+    expect(steps.some((s) => s.reported > 10)).toBe(true); // the lag really happened
+    for (const s of steps) {
+      expect(s.dialog).toBe(false);
+      expect(s.slider).toBeLessThanOrEqual(4);
+    }
+    await advance(page, 1.5);
+    await expect(page.getByRole('dialog')).toContainText('Which colour');
+  });
+
+  test('the video area is inert at all times, so Tab never reaches the embed', async ({ page }) => {
+    await open(page, '&fixture=empty&duration=30');
+    await expect(page.locator('.ivp-video')).toHaveAttribute('inert', '');
+    await page.keyboard.press('Tab');
+    await expect(page.locator('.ivp-play')).toBeFocused();
+    for (let i = 0; i < 6; i++) {
+      await page.keyboard.press('Tab');
+      await expect(page.locator('.standin-embed-link')).not.toBeFocused();
+    }
+    await play(page);
+    await advance(page, 30);
+    await page.getByRole('dialog').getByRole('button', { name: 'Watch again' }).click();
+    await expect(page.locator('.ivp-video')).toHaveAttribute('inert', '');
+  });
+
+  test('Check answer with nothing selected shows a visible message tied to the choices', async ({ page }) => {
+    await open(page, '&fixture=three');
+    await play(page);
+    await advance(page, 5);
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('button', { name: 'Check answer' }).click();
+    const msg = dialog.getByText('Choose an answer first.');
+    await expect(msg).toBeVisible();
+    await expect(dialog.getByRole('group')).toHaveAccessibleDescription('Choose an answer first.');
+    await expect(page.locator('.ivp-announcer')).toHaveText(/^\s*Choose an answer first\.\s*$/);
+    await dialog.getByRole('radio', { name: 'Bravo' }).check();
+    await expect(msg).toHaveCount(0);
+    await expect(dialog.getByRole('group')).toHaveAccessibleDescription('');
+  });
+});

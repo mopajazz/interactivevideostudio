@@ -48,6 +48,11 @@ export class ScrubGuard {
     return null;
   }
 
+  /** True when `t` is past the allowed point: a forward seek, or a stale sample while a snap-back is still landing. */
+  isAhead(t: number): boolean {
+    return this.enabled && this.seeded && Number.isFinite(t) && t > this.furthest + this.tolerance;
+  }
+
   release(): void {
     this.enabled = false;
     this.pendingSince = null;

@@ -35,6 +35,14 @@ export const fixtures: Record<string, () => Project> = {
   unscored: () => base([{ id: 't1', type: 'text', time: 5, order: 0, promptHtml: '<p>Just a note.</p>' }]),
   empty: () => ({ ...base([]), duration: 180 }),
   zero: () => base([{ id: 't0', type: 'text', time: 0, order: 0, promptHtml: '<p>Welcome.</p>' }]),
+  three: () => base([{
+    id: 'r1', type: 'multipleChoice', time: 5, order: 0, promptHtml: '<p>Pick one.</p>',
+    choices: [
+      { id: 'a', html: 'Alpha', correct: true },
+      { id: 'b', html: 'Bravo', correct: false },
+      { id: 'c', html: 'Charlie', correct: false },
+    ],
+  }]),
   multi: () => base([{
     id: 'm1', type: 'multipleChoice', time: 5, order: 0, promptHtml: '<p>Pick the primes.</p>',
     choices: [
