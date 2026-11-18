@@ -51,6 +51,19 @@ describe('pnpm run sample:package --check', () => {
     expect(existsSync(resolve(root, `out/lms-acceptance-sample-${variant}.zip`))).toBe(true);
   }, 120_000);
 
+  it('--duration sets the video length in the package', async () => {
+    execFileSync('node', ['scripts/build-sample-package.mjs', '--check', '--duration=600'], { cwd: root, encoding: 'utf8' });
+    const zip = await JSZip.loadAsync(readFileSync(resolve(root, 'out/lms-acceptance-sample.zip')));
+    expect(JSON.parse(await zip.file('project.json')!.async('string')).duration).toBe(600);
+    execFileSync('node', ['scripts/build-sample-package.mjs'], { cwd: root }); // back to the sample's own length
+  }, 120_000);
+
+  it('rejects a duration that is not a positive number, or one that leaves a checkpoint past the end', () => {
+    for (const d of ['abc', '0', '100']) {
+      expect(() => execFileSync('node', ['scripts/build-sample-package.mjs', `--duration=${d}`], { cwd: root, stdio: 'pipe' })).toThrow();
+    }
+  });
+
   it('rejects an unknown variant', () => {
     expect(() => execFileSync('node', ['scripts/build-sample-package.mjs', '--variant=nope'], { cwd: root, stdio: 'pipe' })).toThrow();
   });

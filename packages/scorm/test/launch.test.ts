@@ -90,9 +90,9 @@ describe('start', () => {
     s.opts().onProgress!(state());
     s.opts().onResult!(result);
     const w = sets(s.api);
-    expect(w).toContainEqual(['cmi.core.score.raw', '1']);
+    expect(w).toContainEqual(['cmi.core.score.raw', '50']);
     expect(w).toContainEqual(['cmi.core.score.min', '0']);
-    expect(w).toContainEqual(['cmi.core.score.max', '2']);
+    expect(w).toContainEqual(['cmi.core.score.max', '100']);
     expect(w).toContainEqual(['cmi.core.lesson_status', 'failed']);
     expect(w).toContainEqual(['cmi.suspend_data', encodeSuspend(state({ submitted: true }), ids)]);
     expect(s.api.LMSFinish).toHaveBeenCalledTimes(1);

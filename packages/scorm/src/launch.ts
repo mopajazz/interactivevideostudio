@@ -47,7 +47,7 @@ export function start(win: Window, doc: Document, project: Project, mountFn: typ
       if (finished) return;
       submitted = true;
       guard(() => {
-        if (result.scored) client.setScore(result.raw, 0, result.max);
+        if (result.scored) client.setScore(result.percent, 0, 100);
       });
       guard(() => client.setStatus(result.status));
       guard(() => client.setSuspend(encodeSuspend({ ...last, submitted: true }, ids)));

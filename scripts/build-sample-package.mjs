@@ -2,6 +2,7 @@
 // Builds out/lms-acceptance-sample.zip from examples/lms-acceptance-sample.json using the editor's own import and
 // export code (importProjectJson, runExport), so the package is what the editor would export for the same project.
 // Run from the repo root: `pnpm run sample:package`. Add `--check` to also validate the zip's contents (exits 1 on a problem).
+// `--duration=SECONDS` sets the video length (use the video's real length if the sample's 300 does not match it).
 // `--variant=NAME` builds a changed copy for the acceptance script (docs/lms-acceptance.md), written beside the main zip:
 //   video-only  the four questions removed (no scored questions: expect "completed", no score)
 //   reworded    the first question's wording changed, same checkpoints
@@ -18,6 +19,12 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const editor = join(root, 'apps/editor');
 const check = process.argv.includes('--check');
 const variant = process.argv.find((a) => a.startsWith('--variant='))?.slice('--variant='.length);
+const durationArg = process.argv.find((a) => a.startsWith('--duration='))?.slice('--duration='.length);
+const duration = durationArg === undefined ? undefined : Number(durationArg);
+if (duration !== undefined && !(Number.isFinite(duration) && duration > 0)) {
+  console.error('--duration must be a positive number of seconds.');
+  process.exit(1);
+}
 const VARIANTS = {
   'video-only': (p) => ({ ...p, title: `${p.title} (video only)`, interactions: p.interactions.filter((i) => i.type !== 'multipleChoice' && i.type !== 'trueFalse') }),
   reworded: (p) => ({ ...p, interactions: p.interactions.map((i) => (i.id === 'i2' ? { ...i, promptHtml: '<p>Which of these is a colour? (reworded)</p>' } : i)) }),
@@ -68,7 +75,8 @@ const { importProjectJson, runExport } = await import(pathToFileURL(outfile).hre
 const sample = join(root, 'examples/lms-acceptance-sample.json');
 const imported = await importProjectJson(new Blob([readFileSync(sample)]));
 const { assets } = imported;
-const project = variant ? VARIANTS[variant](imported.project) : imported.project;
+const base = duration === undefined ? imported.project : { ...imported.project, duration };
+const project = variant ? VARIANTS[variant](base) : base;
 const result = await runExport(project, assets);
 rmSync(work, { recursive: true, force: true });
 if (!result.ok) {

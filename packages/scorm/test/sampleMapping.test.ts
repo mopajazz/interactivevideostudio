@@ -38,22 +38,28 @@ function launchAndSubmit(project: Project, answers: Record<string, string[]>): R
 const allCorrect: Record<string, string[]> = { i2: ['c1'], i4: ['true'], i5: ['c1', 'c3'], i7: ['false'] };
 
 describe('LMS acceptance sample: what the LMS is told', () => {
-  it('3 of 4 correct (75%, mastery 80) is failed with raw 3, min 0, max 4', () => {
+  it('3 of 4 correct (75%, mastery 80) is failed with raw 75, min 0, max 100', () => {
     const d = launchAndSubmit(sample, { ...allCorrect, i7: ['true'] });
-    expect(d['cmi.core.score.raw']).toBe('3');
+    expect(d['cmi.core.score.raw']).toBe('75');
     expect(d['cmi.core.score.min']).toBe('0');
-    expect(d['cmi.core.score.max']).toBe('4');
+    expect(d['cmi.core.score.max']).toBe('100');
     expect(d['cmi.core.lesson_status']).toBe('failed');
   });
 
   it('a question with two correct choices needs both', () => {
     const d = launchAndSubmit(sample, { ...allCorrect, i5: ['c1'] });
-    expect(d['cmi.core.score.raw']).toBe('3');
+    expect(d['cmi.core.score.raw']).toBe('75');
   });
 
-  it('4 of 4 correct is passed with raw 4, min 0, max 4', () => {
+  it('4 of 4 correct is passed with raw 100, min 0, max 100', () => {
     const d = launchAndSubmit(sample, allCorrect);
-    expect([d['cmi.core.score.raw'], d['cmi.core.score.min'], d['cmi.core.score.max'], d['cmi.core.lesson_status']]).toEqual(['4', '0', '4', 'passed']);
+    expect([d['cmi.core.score.raw'], d['cmi.core.score.min'], d['cmi.core.score.max'], d['cmi.core.lesson_status']]).toEqual(['100', '0', '100', 'passed']);
+  });
+
+  it('2 of 3 correct reports 66.67 out of 100', () => {
+    const three: Project = { ...sample, interactions: sample.interactions.filter((i) => i.id !== 'i7') };
+    const d = launchAndSubmit(three, { i2: ['c1'], i4: ['true'], i5: ['c2'] });
+    expect([d['cmi.core.score.raw'], d['cmi.core.score.max'], d['cmi.core.lesson_status']]).toEqual(['66.67', '100', 'failed']);
   });
 
   it('a video with no scored questions is completed and writes no score', () => {
