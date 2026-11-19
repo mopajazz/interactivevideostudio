@@ -214,16 +214,39 @@ test.describe('final screen', () => {
     expect(results).toEqual([{ raw: 0, max: 0, percent: 0, passed: true, scored: false, status: 'completed' }]);
   });
 
-  test('resume after submission shows the stored result, not Submit', async ({ page }) => {
+  test('resume after submission opens the stored result at once, not Submit, without replaying to the end', async ({ page }) => {
     const initial = encodeURIComponent(JSON.stringify({ furthest: 30, answers: { q1: ['a'], q2: ['f'] }, submitted: true }));
     await open(page, `&lock=1&initial=${initial}`);
-    await page.locator('input[type=range]').fill('29');
-    await play(page);
-    await advance(page, 1);
     const dialog = page.getByRole('dialog');
     await expect(dialog).toContainText('100%');
+    await expect(dialog).toHaveAccessibleName('End of video');
     await expect(dialog.getByRole('button', { name: 'Submit answers' })).toHaveCount(0);
+    expect(await now(page)).toBe(0);
+    expect(await page.evaluate(() => (window as any).__results)).toEqual([]);
+    // Watching again is free (the lock was released by the earlier submission) and nothing is re-scored.
+    await dialog.getByRole('button', { name: 'Watch again' }).click();
+    await expect(dialog).toHaveCount(0);
+    await page.locator('input[type=range]').fill('25');
+    expect(await now(page)).toBe(25);
   });
+});
+
+test('progress reports say why: tick for new progress, pause, answer, submit', async ({ page }) => {
+  await open(page, '&fixture=unscored');
+  await play(page);
+  await advance(page, 3);
+  expect(await page.evaluate(() => (window as any).__reasons)).toEqual(['tick', 'tick', 'tick']);
+  await page.getByRole('button', { name: 'Pause', exact: true }).click();
+  expect(await page.evaluate(() => (window as any).__reasons.at(-1))).toBe('pause');
+  await open(page);
+  await play(page);
+  await advance(page, 5);
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('radio', { name: 'Blue' }).check();
+  await dialog.getByRole('button', { name: 'Check answer' }).click();
+  const reasons: string[] = await page.evaluate(() => (window as any).__reasons);
+  expect(reasons.indexOf('pause')).toBeGreaterThan(-1); // the card paused the video
+  expect(reasons.at(-1)).toBe('answer');
 });
 
 test.describe('playbar', () => {
@@ -245,14 +268,33 @@ test.describe('playbar', () => {
     expect(await now(page)).toBe(20);
   });
 
-  test('resume presets the furthest point and skips answered questions', async ({ page }) => {
+  test('resume seeks to two seconds before the furthest point, presets the lock, and skips answered questions', async ({ page }) => {
     const initial = encodeURIComponent(JSON.stringify({ furthest: 12, answers: { q1: ['a'] }, submitted: false }));
     await open(page, `&lock=1&initial=${initial}`);
+    expect(await now(page)).toBe(10);
+    await expect(page.locator('input[type=range]')).toHaveValue('10');
+    // The question left unanswered at 10 s opens on Play; the answered one at 5 s never does.
     await play(page);
-    await page.locator('input[type=range]').fill('11');
-    expect(await now(page)).toBe(11);
-    await advance(page, 0.5);
-    await expect(page.getByRole('dialog')).toContainText('Water is dry.');
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toContainText('Water is dry.');
+    await dialog.getByRole('radio', { name: 'False' }).check();
+    await dialog.getByRole('button', { name: 'Check answer' }).click();
+    await dialog.getByRole('button', { name: 'Continue' }).click();
+    // The lock still holds at the saved furthest point.
+    await page.locator('input[type=range]').fill('20');
+    expect(await now(page)).toBeLessThanOrEqual(12);
+    await page.locator('input[type=range]').fill('2');
+    await expect(page.locator('.ivp-play')).toHaveAccessibleName('Pause'); // Continue resumed playback
+    await advance(page, 4);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  });
+
+  test('resume near the start seeks to 0, and a fresh start does not seek', async ({ page }) => {
+    const initial = encodeURIComponent(JSON.stringify({ furthest: 1, answers: {}, submitted: false }));
+    await open(page, `&fixture=empty&initial=${initial}`);
+    expect(await now(page)).toBe(0);
+    await open(page, '&fixture=empty');
+    expect(await page.evaluate(() => (window as any).__fake.seeks)).toEqual([]);
   });
 
   test('progress slider has time in words', async ({ page }) => {

@@ -13,10 +13,17 @@ import { Playbar } from './ui/playbar';
 import { buildFinal } from './ui/submit';
 import './styles.css';
 
+/**
+ * Why a progress report was sent: 'answer' (an answer is now held), 'pause' (the video paused), 'tick' (new
+ * furthest-watched progress, about once a second of playback) or 'submit' (after onResult).
+ */
+export type ProgressReason = 'answer' | 'pause' | 'tick' | 'submit';
+
 export type MountOptions = {
   adapter?: VideoAdapter;
   onResult?: (r: Result) => void;
-  onProgress?: (s: SuspendState) => void;
+  /** The state to save. `reason` lets a host decide what is worth sending on at once (e.g. an LMS commit). */
+  onProgress?: (s: SuspendState, reason?: ProgressReason) => void;
   initial?: SuspendState;
   /** Maps an image interaction's imageAssetId to a URL. Default: `assets/<id>`. */
   assetUrl?: (id: string) => string;
@@ -29,6 +36,8 @@ export type MountOptions = {
 
 /** Seconds from the end that count as "at the end" (players stop a little short). */
 const END_SLACK = 0.25;
+/** A resumed learner starts this many seconds before the furthest point watched, for context. */
+const RESUME_LEAD = 2;
 
 export function mount(el: HTMLElement, project: Project, opts: MountOptions = {}): { destroy(): void } {
   const root = h('div', 'ivp-root');
@@ -71,12 +80,16 @@ export function mount(el: HTMLElement, project: Project, opts: MountOptions = {}
   const adapter = opts.adapter ?? new YouTubeAdapter(video, project.videoId);
   const duration = () => adapter.getDuration();
 
-  const progress = () =>
-    opts.onProgress?.({ furthest: guard.furthest, answers: score.getAnswers(), submitted: result !== null });
+  const progress = (reason: ProgressReason) =>
+    opts.onProgress?.({ furthest: guard.furthest, answers: score.getAnswers(), submitted: result !== null }, reason);
 
-  /** Built once the real duration is known; resumed state marks what was already done as seen. */
-  const ensureScheduler = () => {
-    if (scheduler || duration() <= 0) return;
+  /**
+   * Built once the real duration is known; resumed state marks what was already done as seen. A resumed learner
+   * who already submitted sees the results screen at once; one who did not is taken to just before the furthest
+   * point watched. Returns that resume time when it seeked there, else null.
+   */
+  const ensureScheduler = (): number | null => {
+    if (scheduler || duration() <= 0) return null;
     scheduler = new InteractionScheduler(items, duration());
     const answers = score.getAnswers();
     for (const it of items) {
@@ -85,11 +98,22 @@ export function mount(el: HTMLElement, project: Project, opts: MountOptions = {}
         : resumeFurthest !== undefined && it.time < resumeFurthest;
       if (done) scheduler.markSeen(it.id);
     }
+    if (result) {
+      showFinal();
+      return null;
+    }
+    if (resumeFurthest === undefined || resumeFurthest <= 0) return null;
+    const at = Math.max(0, Math.min(resumeFurthest - RESUME_LEAD, duration()));
+    adapter.seekTo(at);
+    playbar.setTime(at, duration());
+    return at;
   };
 
   /** Handles one time sample: scrub guard first, then due checkpoints. Returns false if it snapped back. */
   const sample = (t: number): boolean => {
-    ensureScheduler();
+    // Right after the resume seek, the sample in hand is from before it.
+    const resumed = ensureScheduler();
+    if (resumed !== null) t = resumed;
     const snap = guard.update(t);
     if (snap !== null) {
       adapter.seekTo(snap);
@@ -102,7 +126,7 @@ export function mount(el: HTMLElement, project: Project, opts: MountOptions = {}
     playbar.setTime(t, duration());
     if (Math.floor(guard.furthest) > reportedFloor) {
       reportedFloor = Math.floor(guard.furthest);
-      progress();
+      progress('tick');
     }
     if (!scheduler || closeModal) return true;
     const due = scheduler.due(prev, t);
@@ -143,7 +167,7 @@ export function mount(el: HTMLElement, project: Project, opts: MountOptions = {}
       assetUrl,
       allowRetry: settings.allowRetry,
       showSolution: settings.showSolution,
-      onAnswer: (ids) => { score.setAnswer(it.id, ids); progress(); },
+      onAnswer: (ids) => { score.setAnswer(it.id, ids); progress('answer'); },
       onDone: showNext,
     });
     show(card.el, card.escapable ? showNext : undefined);
@@ -166,7 +190,7 @@ export function mount(el: HTMLElement, project: Project, opts: MountOptions = {}
         guard.release(); // rewatching after submission is free
         questions.forEach((q) => scheduler?.markSeen(q.id)); // nothing is re-scored
         opts.onResult?.(result);
-        progress();
+        progress('submit');
         return result;
       },
       rewatch: () => {
@@ -194,6 +218,7 @@ export function mount(el: HTMLElement, project: Project, opts: MountOptions = {}
     playbar.setBuffering(false);
     playing = s === 'playing';
     playbar.setPlaying(playing);
+    if (s === 'paused') progress('pause');
     // A checkpoint just before the end may fall between polls: sample the end first.
     if (s === 'ended' && sample(duration())) showFinal();
   });
@@ -206,6 +231,7 @@ export function mount(el: HTMLElement, project: Project, opts: MountOptions = {}
   });
 
   playbar.setTime(0, duration());
+  ensureScheduler(); // an adapter that already knows its duration (e.g. a test double) resumes at once
 
   return {
     destroy() {

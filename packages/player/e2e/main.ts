@@ -28,12 +28,13 @@ if (qs.get('adapter') === 'fake') {
   w.__fake = adapter;
   w.__results = [];
   w.__progress = [];
+  w.__reasons = [];
 }
 const initial = qs.get('initial');
 const player = mount(document.getElementById('app')!, project, {
   adapter,
   onResult: (r) => w.__results?.push(r),
-  onProgress: (s) => w.__progress?.push(s),
+  onProgress: (s, reason) => { w.__progress?.push(s); w.__reasons?.push(reason); },
   initial: initial ? JSON.parse(initial) : undefined,
   // ?escape=1: the host wants Escape (as the editor's preview does); calls are counted in window.__escapes.
   onEscape: qs.get('escape') === '1' ? () => { w.__escapes = (w.__escapes ?? 0) + 1; } : undefined,

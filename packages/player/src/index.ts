@@ -6,6 +6,6 @@ export { YouTubeAdapter, API_LOAD_FAILED } from './YouTubeAdapter';
 export { ScoreState } from './scoring';
 export type { Result } from './scoring';
 export { mount } from './mount';
-export type { MountOptions } from './mount';
+export type { MountOptions, ProgressReason } from './mount';
 export { Announcer } from './ui/announcer';
 export { clock, inWords } from './ui/playbar';

@@ -10,6 +10,8 @@ export class FakeAdapter implements VideoAdapter {
   destroyed = false;
   private handlers: Record<Ev, Array<(v: any) => void>> = { time: [], state: [], error: [] };
 
+  /** Every seekTo target, in order (for tests). */
+  seeks: number[] = [];
   /** Last value reported through getCurrentTime() or a 'time' event (for tests). */
   lastReported = 0;
   private lagLeft = 0;
@@ -27,6 +29,7 @@ export class FakeAdapter implements VideoAdapter {
   play() { this.playing = true; this.emit('state', 'playing'); }
   pause() { this.playing = false; this.emit('state', 'paused'); }
   seekTo(s: number) {
+    this.seeks.push(s);
     if (this.seekLagSamples > 0) { this.stale = this.t; this.lagLeft = this.seekLagSamples; }
     this.t = Math.min(Math.max(0, s), this.duration);
   }
