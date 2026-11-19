@@ -264,7 +264,7 @@ test.describe('link and image', () => {
     const status = d.getByTestId('url-message');
     await expect(status).toHaveAttribute('role', 'status');
     await expect(d.getByText('Add a web address')).toBeVisible();
-    expect((await url.getAttribute('aria-describedby'))!.split(' ')).toContain(await d.getByText('Add a web address').getAttribute('id'));
+    await expect(url).toHaveAccessibleDescription(/Add a web address/);
     await url.fill('javascript:alert(1)');
     await expect(d.getByText('Use a web address that starts with https://, http:// or mailto:')).toBeVisible();
     await expect(url).toHaveAttribute('aria-invalid', 'true');
@@ -281,7 +281,7 @@ test.describe('link and image', () => {
     const error = d.getByText('Add alt text or mark decorative');
     await expect(error).toBeVisible();
     await expect(alt).toHaveAttribute('aria-invalid', 'true');
-    expect((await alt.getAttribute('aria-describedby'))!.split(' ')).toContain(await error.getAttribute('id'));
+    await expect(alt).toHaveAccessibleDescription(/Add alt text or mark decorative/);
     await alt.fill('A green leaf');
     await expect(error).toHaveCount(0);
     await d.getByRole('checkbox', { name: 'Decorative image' }).check();
@@ -321,7 +321,7 @@ test.describe('link and image', () => {
   test('a file that is not an image shows a readable error', async ({ page }) => {
     await tool(page, 'Image').click();
     await drawer(page).getByLabel('Image file').setInputFiles({ name: 'notes.png', mimeType: 'image/png', buffer: Buffer.from('hello') });
-    await expect(drawer(page).getByText("This file couldn't be read as an image. Try a JPEG, PNG or WebP file.")).toBeVisible();
+    await expect(drawer(page).getByText("This file couldn't be read as an image. Try a JPEG, PNG, WebP or GIF file.")).toBeVisible();
   });
 });
 
@@ -523,7 +523,7 @@ test.describe('checkpoints past the end of a shorter video', () => {
     const error = drawer(page).getByText('This checkpoint is after the end of the video (1:35). Move it earlier.');
     await expect(error).toBeVisible();
     await expect(time).toHaveAttribute('aria-invalid', 'true');
-    expect((await time.getAttribute('aria-describedby'))!.split(' ')).toContain(await error.getAttribute('id'));
+    await expect(time).toHaveAccessibleDescription(/This checkpoint is after the end of the video \(1:35\)\. Move it earlier\./);
     expect(await error.evaluate((el) => el.closest('[role="status"]') !== null)).toBe(true);
 
     await time.fill('1:00');

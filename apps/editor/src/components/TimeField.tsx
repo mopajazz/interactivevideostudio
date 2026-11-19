@@ -49,8 +49,8 @@ export function TimeField({ value, max, duration, onCommit }: Props) {
         onBlur={commit}
         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commit(); } }}
       />
-      <div role="status" className="field-status">
-        {shown && <p id={`${id}-msg`} className={`msg ${shown.error ? 'msg-error' : 'msg-info'}`}>{shown.error && <IconAlert />}{shown.text}</p>}
+      <div id={`${id}-msg`} role="status" className="field-status">
+        {shown && <p className={`msg ${shown.error ? 'msg-error' : 'msg-info'}`}>{shown.error && <IconAlert />}{shown.text}</p>}
       </div>
     </div>
   );

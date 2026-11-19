@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { newAssetId } from '../src/storage/images';
+import { IMAGE_HINT, UNREADABLE_IMAGE, newAssetId } from '../src/storage/images';
 
 // compressImage needs a real canvas, so it is tested in the browser: e2e/images.spec.ts.
 describe('newAssetId', () => {
@@ -18,5 +18,15 @@ describe('newAssetId', () => {
   it('does not repeat', () => {
     const ids = new Set(Array.from({ length: 500 }, () => newAssetId('image/png')));
     expect(ids.size).toBe(500);
+  });
+});
+
+describe('image copy', () => {
+  it('the picker hint and the unreadable-file message name the same types, and say a GIF loses its animation', () => {
+    for (const t of ['JPEG', 'PNG', 'WebP', 'GIF']) {
+      expect(IMAGE_HINT).toContain(t);
+      expect(UNREADABLE_IMAGE).toContain(t);
+    }
+    expect(IMAGE_HINT).toMatch(/GIF.*(still|animation)/);
   });
 });

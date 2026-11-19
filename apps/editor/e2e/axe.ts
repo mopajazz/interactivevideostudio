@@ -22,6 +22,7 @@ export const settle = (page: Page) =>
  */
 export async function expectNoAxeViolations(page: Page) {
   await settle(page);
+  await expectNoDanglingDescribedBy(page);
   const { violations } = await new AxeBuilder({ page }).withTags([...WCAG_TAGS, 'best-practice']).analyze();
   const isWcag = (tags: string[]) => tags.some((t) => WCAG_TAGS.includes(t));
   const failing = violations.filter((v) => isWcag(v.tags) || v.impact === 'serious' || v.impact === 'critical');
@@ -39,3 +40,16 @@ export async function expectNoAxeViolations(page: Page) {
 /** True when the page scrolls sideways (WCAG 1.4.10 reflow at 320 CSS px). */
 export const scrollsSideways = (page: Page) =>
   page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
+
+/**
+ * Every id named by aria-describedby (or aria-labelledby) exists in the page. axe accepts a list where at least one
+ * id exists; this is stricter, so a message id referenced before its message is shown is caught.
+ */
+export async function expectNoDanglingDescribedBy(page: Page) {
+  const dangling = await page.evaluate(() =>
+    [...document.querySelectorAll('[aria-describedby], [aria-labelledby]')].flatMap((el) =>
+      ['aria-describedby', 'aria-labelledby'].flatMap((attr) =>
+        (el.getAttribute(attr) ?? '').split(/\s+/).filter((id) => id && !document.getElementById(id))
+          .map((id) => `${el.tagName.toLowerCase()}${el.id ? '#' + el.id : ''} ${attr} -> ${id}`))));
+  expect(dangling, 'aria-describedby/labelledby pointing at absent ids').toEqual([]);
+}

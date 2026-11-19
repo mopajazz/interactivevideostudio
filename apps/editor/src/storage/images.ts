@@ -8,6 +8,11 @@ const QUALITIES = [0.85, 0.75, 0.65, 0.5];
 
 const kb = (n: number) => `${Math.round(n / 1024)} KB`;
 
+/** The picker's hint. Every image is redrawn, so a GIF is stored as a still image: its animation is lost. */
+export const IMAGE_HINT =
+  'JPEG, PNG, WebP or GIF. A GIF becomes a still image (its animation is lost). Large images are made smaller, and photo location data is removed.';
+export const UNREADABLE_IMAGE = "This file couldn't be read as an image. Try a JPEG, PNG, WebP or GIF file.";
+
 type Surface = { canvas: OffscreenCanvas | HTMLCanvasElement; ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D };
 function surface(w: number, h: number): Surface {
   const canvas = typeof OffscreenCanvas === 'function' ? new OffscreenCanvas(w, h) : Object.assign(document.createElement('canvas'), { width: w, height: h });
@@ -32,7 +37,7 @@ export async function compressImage(file: File, maxEdge = 1600, maxBytes = 800 *
   try {
     bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' }); // apply EXIF rotation before redrawing
   } catch {
-    throw new Error("This file couldn't be read as an image. Try a JPEG, PNG or WebP file.");
+    throw new Error(UNREADABLE_IMAGE);
   }
   const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
   const w = Math.max(1, Math.round(bitmap.width * scale));

@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from 'react';
 import { RichText } from '../../components/RichText';
-import { compressImage } from '../../storage/images';
+import { IMAGE_HINT, compressImage } from '../../storage/images';
 import { IconAlert, IconSpinner } from '../../ui/icons';
 import type { EditorProps } from './types';
 
@@ -37,7 +37,7 @@ export function ImageEditor({ it, onPatch, image, onImage }: Props) {
     <>
       <div className="field" data-field="">
         <label htmlFor={`${id}-file`} className="field-label">Image file</label>
-        <p id={`${id}-file-hint`} className="field-hint">JPEG, PNG, WebP or GIF. Large images are made smaller, and photo location data is removed.</p>
+        <p id={`${id}-file-hint`} className="field-hint">{IMAGE_HINT}</p>
         <input
           id={`${id}-file`}
           className="input input-file"
@@ -50,9 +50,9 @@ export function ImageEditor({ it, onPatch, image, onImage }: Props) {
             void choose(file);
           }}
         />
-        <div role="status" className="field-status">
-          {busy && <p id={`${id}-file-msg`} className="msg msg-info"><IconSpinner />Processing the image…</p>}
-          {!busy && error && <p id={`${id}-file-msg`} className="msg msg-error"><IconAlert />{error}</p>}
+        <div id={`${id}-file-msg`} role="status" className="field-status">
+          {busy && <p className="msg msg-info"><IconSpinner />Processing the image…</p>}
+          {!busy && error && <p className="msg msg-error"><IconAlert />{error}</p>}
         </div>
         {url && <img className="image-preview" src={url} alt="Preview of the chosen image" />}
       </div>
@@ -74,8 +74,8 @@ export function ImageEditor({ it, onPatch, image, onImage }: Props) {
             onPatch((x) => ({ ...x, alt }));
           }}
         />
-        <div role="status" className="field-status">
-          {altMissing && <p id={`${id}-alt-msg`} className="msg msg-error"><IconAlert />{ALT_MISSING}</p>}
+        <div id={`${id}-alt-msg`} role="status" className="field-status">
+          {altMissing && <p className="msg msg-error"><IconAlert />{ALT_MISSING}</p>}
         </div>
         <label className="check">
           <input

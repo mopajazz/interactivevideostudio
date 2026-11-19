@@ -78,7 +78,7 @@ test('throws a readable error for a file that is not an image', async ({ page })
     const { compressImage } = (await import('/src/storage/images.ts' as string)) as typeof import('../src/storage/images');
     return compressImage(new File(['hello'], 'notes.png', { type: 'image/png' })).then(() => 'resolved', (e: Error) => e.message);
   });
-  expect(message).toBe("This file couldn't be read as an image. Try a JPEG, PNG or WebP file.");
+  expect(message).toBe("This file couldn't be read as an image. Try a JPEG, PNG, WebP or GIF file.");
 });
 
 test('applies EXIF orientation before redrawing, so a rotated photo stays upright', async ({ page }) => {

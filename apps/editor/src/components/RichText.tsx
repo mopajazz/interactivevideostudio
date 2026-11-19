@@ -159,8 +159,8 @@ function LinkForm({ editor, onDone }: { editor: Editor; onDone: () => void }) {
         onChange={(e) => { setUrl(e.target.value); setError(false); }}
         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); apply(); } }}
       />
-      <div role="status" className="field-status">
-        {error && <p id={`${id}-msg`} className="msg msg-error"><IconAlert />{BAD_URL}</p>}
+      <div id={`${id}-msg`} role="status" className="field-status">
+        {error && <p className="msg msg-error"><IconAlert />{BAD_URL}</p>}
       </div>
       <div className="rt-link-actions">
         <button type="button" className="btn btn-primary btn-small" onClick={apply}>Apply link</button>

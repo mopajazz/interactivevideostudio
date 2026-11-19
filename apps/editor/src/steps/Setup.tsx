@@ -104,7 +104,8 @@ export function Setup({ project, onChange, onNext, fetchVideoInfo = realFetchVid
           onBlur={() => setTouched(true)}
         />
         {/* Always rendered (never display:none), so a message inserted later is announced. */}
-        <div role="status" className="field-status" data-testid="url-status">
+        {/* The id is on the always-present region, so aria-describedby never points at nothing. */}
+        <div id="setup-url-msg" role="status" className="field-status" data-testid="url-status">
           <UrlMessage badLink={badLink} check={check} duration={project.duration} />
         </div>
         {check === 'unavailable' && (
@@ -158,20 +159,20 @@ export function Setup({ project, onChange, onNext, fetchVideoInfo = realFetchVid
 }
 
 function UrlMessage({ badLink, check, duration }: { badLink: boolean; check: Check; duration: number }) {
-  if (badLink) return <p id="setup-url-msg" className="msg msg-error"><IconAlert />{BAD_LINK}</p>;
+  if (badLink) return <p className="msg msg-error"><IconAlert />{BAD_LINK}</p>;
   switch (check) {
     case 'checking':
-      return <p id="setup-url-msg" className="msg msg-info"><IconSpinner />Checking the video…</p>;
+      return <p className="msg msg-info"><IconSpinner />Checking the video…</p>;
     case 'ok':
       return (
-        <p id="setup-url-msg" className="msg msg-ok">
+        <p className="msg msg-ok">
           <IconCheck />Video found<span className="pill">Length <time dateTime={isoDuration(duration)}>{formatDuration(duration)}</time></span>
         </p>
       );
     case 'embed-disabled':
-      return <p id="setup-url-msg" className="msg msg-error"><IconAlert />{EMBED_OFF}</p>;
+      return <p className="msg msg-error"><IconAlert />{EMBED_OFF}</p>;
     case 'unavailable':
-      return <p id="setup-url-msg" className="msg msg-error"><IconAlert />{UNAVAILABLE}</p>;
+      return <p className="msg msg-error"><IconAlert />{UNAVAILABLE}</p>;
     default:
       return null;
   }

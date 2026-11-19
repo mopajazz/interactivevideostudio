@@ -42,9 +42,9 @@ export function LinkEditor({ it, onPatch }: EditorProps) {
           }}
         />
         {/* Always rendered, so a message inserted later is announced. */}
-        <div role="status" className="field-status" data-testid="url-message">
+        <div id={`${id}-msg`} role="status" className="field-status" data-testid="url-message">
           {(empty || bad) && (
-            <p id={`${id}-msg`} className="msg msg-error"><IconAlert />{empty ? 'Add a web address' : BAD_URL}</p>
+            <p className="msg msg-error"><IconAlert />{empty ? 'Add a web address' : BAD_URL}</p>
           )}
         </div>
       </div>

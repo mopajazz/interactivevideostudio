@@ -46,10 +46,11 @@ test.describe('Step 1: Setup', () => {
     const error = page.getByText(BAD);
     await expect(error).toBeVisible();
     await expect(urlField(page)).toHaveAttribute('aria-invalid', 'true');
+    // The field is described by the always-present message region, which now holds the error.
     const describedBy = (await urlField(page).getAttribute('aria-describedby')) ?? '';
-    const errorId = await error.getAttribute('id');
-    expect(describedBy.split(' ')).toContain(errorId);
-    await expect(region.locator(`#${errorId}`)).toBeVisible();
+    expect(describedBy.split(' ')).toContain(await region.getAttribute('id'));
+    await expect(region.getByText(BAD)).toBeVisible();
+    await expect(urlField(page)).toHaveAccessibleDescription(new RegExp(BAD.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     await expect(nextButton(page)).toHaveAttribute('aria-disabled', 'true');
     await expect(page.getByTestId('next-reason')).toHaveText('To continue, add a YouTube link.');
     await nextButton(page).click({ force: true }); // aria-disabled: still focusable and clickable, but inert
