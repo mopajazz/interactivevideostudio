@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import JSZip from 'jszip';
 import type { Project } from '@ivt/schema';
-import { buildManifest } from '../src/manifest';
+import { buildManifest, manifestIdentifier } from '../src/manifest';
 import { buildScormZip } from '../src/exportZip';
 
 const bundle = { js: 'var IVPlayer={};', css: '.x{}', launchJs: 'var IVScorm={};' };
@@ -61,6 +61,36 @@ describe('buildManifest', () => {
     expect(doc.querySelector('organization > title')?.textContent).toBe('A & B <c>');
     expect(doc.querySelector('item > title')?.textContent).toBe('A & B <c>');
     expect(Array.from(doc.querySelectorAll('file')).map((f) => f.getAttribute('href'))).toEqual(files);
+  });
+});
+
+describe('manifest title and identifier', () => {
+  it('strips characters XML 1.0 does not allow from the title, so the manifest stays well-formed', () => {
+    const xml = buildManifest('A\u0001B\u000bC\u001fD￾\uD800E\tF', ['index.html']);
+    const doc = parse(xml);
+    expect(doc.querySelector('parsererror')).toBeNull();
+    expect(doc.querySelector('organization > title')?.textContent).toBe('ABCDE\tF');
+  });
+
+  it('uses the identifier it is given for the manifest', () => {
+    const doc = parse(buildManifest('T', ['index.html'], 'ivt-t-0123abcd'));
+    expect(doc.documentElement.getAttribute('identifier')).toBe('ivt-t-0123abcd');
+  });
+
+  it('derives a per-package identifier: a title slug plus a short hash of the project', () => {
+    const a = manifestIdentifier(project());
+    expect(a).toMatch(/^ivt-safety-101-[0-9a-f]{8}$/);
+    expect(manifestIdentifier(project())).toBe(a);
+    expect(manifestIdentifier(project({ duration: 61 }))).not.toBe(a);
+    expect(manifestIdentifier(project({ title: 'Другой курс' }))).toMatch(/^ivt-course-[0-9a-f]{8}$/);
+    expect(manifestIdentifier(project({ title: 'x'.repeat(200) })).length).toBeLessThanOrEqual(60);
+  });
+
+  it('the exported manifest carries it, not a constant', async () => {
+    const zip = await unzip(await buildScormZip(project(), new Map(), bundle));
+    const doc = parse(await zip.file('imsmanifest.xml')!.async('string'));
+    expect(doc.documentElement.getAttribute('identifier')).toBe(manifestIdentifier(project()));
+    expect(doc.documentElement.getAttribute('identifier')).not.toBe('ivt-course');
   });
 });
 

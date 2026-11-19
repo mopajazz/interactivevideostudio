@@ -1,7 +1,7 @@
 import JSZip from 'jszip';
 import type { Project } from '@ivt/schema';
 import { buildIndexHtml } from './launch.html';
-import { buildManifest } from './manifest';
+import { buildManifest, manifestIdentifier } from './manifest';
 
 const ASSET_ID = /^[A-Za-z0-9_-]+\.(jpg|png|webp|gif)$/;
 
@@ -20,7 +20,7 @@ export async function buildScormZip(
   }
   const files = ['index.html', 'player.js', 'player.css', 'launch.js', 'project.json', ...[...assets.keys()].map((id) => `assets/${id}`)];
   const zip = new JSZip();
-  zip.file('imsmanifest.xml', buildManifest(project.title, files));
+  zip.file('imsmanifest.xml', buildManifest(project.title, files, manifestIdentifier(project)));
   zip.file('index.html', buildIndexHtml(project));
   zip.file('player.js', bundle.js);
   zip.file('player.css', bundle.css);

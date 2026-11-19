@@ -69,4 +69,65 @@ describe('checkPackage', () => {
     expect(text).toContain('external');
     expect(text).toContain('inline');
   });
+
+  describe('referential checks', () => {
+    const editManifest = async (zip: JSZip, f: (xml: string) => string) => {
+      const xml = await zip.file('imsmanifest.xml')!.async('string');
+      const next = f(xml);
+      expect(next).not.toBe(xml); // the mutation really applied
+      zip.file('imsmanifest.xml', next);
+    };
+    const editProject = async (zip: JSZip, f: (p: Record<string, unknown>) => unknown) => {
+      const p = JSON.parse(await zip.file('project.json')!.async('string'));
+      const next = JSON.stringify(f(p), null, 2);
+      zip.file('project.json', next);
+      const html = await zip.file('index.html')!.async('string');
+      zip.file('index.html', html.replace(/(id="ivt-project">).*?(<\/script>)/s, `$1${JSON.stringify(f(p)).replace(/</g, '\\u003c')}$2`));
+    };
+
+    it('reports an item identifierref that does not match the resource identifier', async () => {
+      const zip = await good();
+      await editManifest(zip, (x) => x.replace(/identifierref="[^"]*"/, 'identifierref="nowhere"'));
+      expect((await check(zip)).join('\n')).toMatch(/identifierref "nowhere"/);
+    });
+
+    it('reports a resource without adlcp:scormtype="sco"', async () => {
+      const zip = await good();
+      await editManifest(zip, (x) => x.replace(' adlcp:scormtype="sco"', ''));
+      expect((await check(zip)).join('\n')).toMatch(/scormtype/);
+      const asset = await good();
+      await editManifest(asset, (x) => x.replace('adlcp:scormtype="sco"', 'adlcp:scormtype="asset"'));
+      expect((await check(asset)).join('\n')).toMatch(/scormtype/);
+    });
+
+    it('reports an organizations default that names no organization', async () => {
+      const zip = await good();
+      await editManifest(zip, (x) => x.replace(/<organizations default="[^"]*"/, '<organizations default="missing-org"'));
+      expect((await check(zip)).join('\n')).toMatch(/default "missing-org"/);
+    });
+
+    it('reports a project.json that fails validateProject', async () => {
+      const zip = await good();
+      await editProject(zip, (p) => ({ ...p, version: 2, settings: { masteryPercent: 300 } }));
+      const text = (await check(zip)).join('\n');
+      expect(text).toContain('project.json is not a valid project');
+      expect(text).toContain('version must be 1');
+    });
+
+    it('reports a project.json with no interactions readably, without crashing', async () => {
+      const zip = await good();
+      zip.remove('assets/LmsSample-01.png');
+      await editManifest(zip, (x) => x.replace('      <file href="assets/LmsSample-01.png"/>\n', ''));
+      await editProject(zip, ({ interactions: _gone, ...rest }) => rest);
+      const problems = await check(zip);
+      expect(problems.join('\n')).toContain('interactions must be an array');
+    });
+
+    it('reports a project.json that is not an object', async () => {
+      const zip = await good();
+      zip.file('project.json', 'null');
+      await expect(check(zip)).resolves.toEqual(expect.arrayContaining([expect.stringContaining('project.json')]));
+    });
+  });
 });
+
