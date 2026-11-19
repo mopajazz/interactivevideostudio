@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { ScrubGuard } from '../src/scrubGuard';
 
 describe('ScrubGuard', () => {
@@ -104,5 +104,18 @@ describe('isAhead', () => {
     const g = new ScrubGuard({ enabled: true, furthest: 0 });
     g.release();
     expect(g.isAhead(99)).toBe(false);
+  });
+});
+
+describe('ScrubGuard default clock', () => {
+  it('uses performance.now (monotonic), not Date.now, when no clock is injected', () => {
+    const perf = vi.spyOn(performance, 'now');
+    const date = vi.spyOn(Date, 'now');
+    const g = new ScrubGuard({ enabled: true, furthest: 0 });
+    expect(g.update(30)).toBe(0); // a forward seek: the guard reads its clock
+    expect(perf).toHaveBeenCalled();
+    expect(date).not.toHaveBeenCalled();
+    perf.mockRestore();
+    date.mockRestore();
   });
 });

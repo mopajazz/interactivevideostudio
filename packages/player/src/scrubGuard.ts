@@ -17,7 +17,7 @@ export class ScrubGuard {
   }) {
     this.enabled = o.enabled;
     this.tolerance = o.tolerance ?? 1.5;
-    this.now = o.now ?? Date.now;
+    this.now = o.now ?? (() => performance.now()); // monotonic: a wall-clock change cannot break the retry window
     this.retryMs = o.retryMs ?? 750;
     this.seeded = o.furthest !== undefined;
     this.furthest = o.furthest ?? 0;
