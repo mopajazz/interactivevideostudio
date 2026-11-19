@@ -39,6 +39,7 @@ For each step, compare what you hear with **Expected**. Mark Pass only if the wh
 | E14 | Press "Start new project", then Escape. | A dialog "Start a new project?" is read with focus on Cancel; Escape closes it and focus returns to "Start new project". |
 | E15 | In a question field, use the formatting toolbar (Tab into it, arrow keys across it, Enter on Bold). | The toolbar is read as "Formatting for Question"; each button is read by name with pressed or not pressed; typing then is bold. Note anything confusing about how the editing area itself is read. |
 | E16 | On Step 3, Tab to "Let learners try a question again" and "Show the correct answer after checking" and press Space on each. Then Tab to "I've checked that this video has captions" (leave it unticked) and export. | Each switch is read with its name, its state (on/off or checked/not checked) changing with each press, and its explanation. The checkbox is read in a group "Before you export", with its explanation that it never blocks export. The export message announced ends with "Reminder: confirm your video has captions." |
+| E17 | Load the editor with nothing else open. Then open the editor again in a second tab. | In the first load, "Your work is saved only in this browser. Export a project file now and then." is announced near the save status, and "Dismiss" removes it. In the second tab (and the first), the warning that the project is also open in another tab and the tabs can overwrite each other is announced. |
 
 ## Part 2: Learner player
 
@@ -59,6 +60,7 @@ For each step, compare what you hear with **Expected**. Mark Pass only if the wh
 | L13 | (Optional) Launch a package whose video doesn't allow embedding. | The message is read as an alert, with a "Watch on YouTube" link. Tab goes to that link; the playbar controls are not reachable. |
 | L14 | Use a package with "Let learners try a question again" on. At a question, choose a wrong answer and press "Check answer". Shift+Tab to "Try again" and press Enter. | After the check, "Incorrect." and the feedback are announced once, with no correct answer given; focus is on "Continue" and Shift+Tab reaches "Try again". After "Try again", "Try again. Choose an answer." is announced once, focus is on the first choice, nothing is chosen and the choices can be used again. |
 | L15 | In the same package, now choose the right answer and press "Check answer". In a package with retry off (the default), check a wrong answer. | "Correct." is announced, then the feedback, then "Correct answer: …" (in the retry-off package, "Incorrect." then "Correct answer: …"), each said once. Arrowing over the choices, the correct one is read with "Correct answer" as part of its name. No "Try again" is offered after a correct answer, or ever with retry off. |
+| L16 | Tab past the speed control to "Full screen" and press Enter, then Enter again. (Skip if the button is not shown: the LMS frame may not allow full screen.) | It is read as a toggle button "Full screen" with its pressed state, the whole player including any open card fills the screen, and the second press leaves full screen. On a phone or tablet, note whether the first Play starts the video or "Tap the video to start" is shown and announced. |
 
 ## Results
 
@@ -98,6 +100,8 @@ Fill in one row per step and pairing. Use Pass, Fail, or N/A (with the reason in
 | E15 | | | macOS, Safari | VoiceOver | PENDING | |
 | E16 | | | Windows, Chrome | NVDA | PENDING | |
 | E16 | | | macOS, Safari | VoiceOver | PENDING | |
+| E17 | | | Windows, Chrome | NVDA | PENDING | |
+| E17 | | | macOS, Safari | VoiceOver | PENDING | |
 | L1 | | | Windows, Chrome | NVDA | PENDING | |
 | L1 | | | macOS, Safari | VoiceOver | PENDING | |
 | L2 | | | Windows, Chrome | NVDA | PENDING | |
@@ -128,5 +132,7 @@ Fill in one row per step and pairing. Use Pass, Fail, or N/A (with the reason in
 | L14 | | | macOS, Safari | VoiceOver | PENDING | |
 | L15 | | | Windows, Chrome | NVDA | PENDING | |
 | L15 | | | macOS, Safari | VoiceOver | PENDING | |
+| L16 | | | Windows, Chrome | NVDA | PENDING | |
+| L16 | | | macOS, Safari | VoiceOver | PENDING | |
 
 When a step fails, also note it in [accessibility-statement.md](accessibility-statement.md) under "Known gaps" until it is fixed.
