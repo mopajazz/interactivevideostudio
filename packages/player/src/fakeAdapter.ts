@@ -17,16 +17,24 @@ export class FakeAdapter implements VideoAdapter {
   private lagLeft = 0;
   private stale = 0;
   private seekLagSamples: number;
+  private refusePlay: boolean;
 
-  /** `seekLagSamples` (opt-in, default 0): after seekTo, report the old position for that many samples, like a real player. */
-  constructor(private duration = 100, o: { seekLagSamples?: number } = {}) {
+  /**
+   * `seekLagSamples` (opt-in, default 0): after seekTo, report the old position for that many samples, like a real player.
+   * `refusePlay` (opt-in): play() does nothing, like a mobile browser that wants a tap on the video itself first;
+   * forcePlay() then stands in for that tap.
+   */
+  constructor(private duration = 100, o: { seekLagSamples?: number; refusePlay?: boolean } = {}) {
     this.seekLagSamples = o.seekLagSamples ?? 0;
+    this.refusePlay = o.refusePlay ?? false;
   }
 
   private emit(ev: Ev, v: unknown) {
     this.handlers[ev].forEach((cb) => cb(v));
   }
-  play() { this.playing = true; this.emit('state', 'playing'); }
+  play() { if (!this.refusePlay) this.forcePlay(); }
+  /** Test helper: start playing even when play() is refused (the learner tapped the video). */
+  forcePlay() { this.playing = true; this.emit('state', 'playing'); }
   pause() { this.playing = false; this.emit('state', 'paused'); }
   seekTo(s: number) {
     this.seeks.push(s);

@@ -1,6 +1,7 @@
 // Test and manual-check page. ?adapter=fake swaps in FakeAdapter (exposed as window.__fake).
 // Other params: fixture=<name>, lock=1 (disable forward scrubbing), duration=<s>, initial=<json SuspendState>,
-// escape=1 (pass an onEscape callback), clock=manual (the card's clock stands still until window.__tick(ms); see below), retry=1|0 and solution=1|0 (set allowRetry / showSolution; absent = default).
+// escape=1 (pass an onEscape callback), clock=manual (the card's clock stands still until window.__tick(ms); see below), retry=1|0 and solution=1|0 (set allowRetry / showSolution; absent = default),
+// refusePlay=1 (the fake ignores play() until window.__fake.forcePlay(), like a device that wants a tap on the video).
 import { FakeAdapter } from '../src/fakeAdapter';
 import { mount } from '../src/mount';
 import { SWAP_GUARD_MS, clock } from '../src/ui/card';
@@ -24,7 +25,7 @@ const w = window as any;
 }
 let adapter: FakeAdapter | undefined;
 if (qs.get('adapter') === 'fake') {
-  adapter = new FakeAdapter(Number(qs.get('duration') ?? project.duration), { seekLagSamples: Number(qs.get('seekLag') ?? 0) });
+  adapter = new FakeAdapter(Number(qs.get('duration') ?? project.duration), { seekLagSamples: Number(qs.get('seekLag') ?? 0), refusePlay: qs.get('refusePlay') === '1' });
   w.__fake = adapter;
   w.__results = [];
   w.__progress = [];

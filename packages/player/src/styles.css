@@ -36,6 +36,22 @@
 .ivp-video iframe, .ivp-video > div { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 /* No native controls; clicks on the frame do nothing. Our playbar is the only control surface. */
 .ivp-video iframe { pointer-events: none; }
+/* Except when a device would not start the video from our Play button: then a tap on the video itself starts it. */
+.ivp-video.is-tap-to-start iframe { pointer-events: auto; }
+.ivp-tap {
+  grid-area: 1 / 1;
+  z-index: 2;
+  align-self: end;
+  justify-self: center;
+  margin: 0 1rem 1rem;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  background: var(--ivp-surface);
+  color: var(--ivp-ink);             /* 16.5:1 */
+  font-weight: 700;
+  pointer-events: none;              /* the tap must reach the video under it */
+}
+.ivp-tap[hidden] { display: none; }
 
 .ivp-layer {
   display: flex;
@@ -177,7 +193,11 @@
 }
 .ivp-icon { width: var(--ivp-target); padding: 0; }
 .ivp-icon svg { width: 24px; height: 24px; fill: currentColor; }
-.ivp-cc[aria-pressed="true"] { background: var(--ivp-on-dark); color: var(--ivp-bar); }
+.ivp-cc[aria-pressed="true"], .ivp-fs[aria-pressed="true"] { background: var(--ivp-on-dark); color: var(--ivp-bar); }
+.ivp-fs[hidden] { display: none; }
+/* Full screen: the player fills the screen and the video keeps its shape, centered. */
+.ivp-root:fullscreen { display: flex; flex-direction: column; justify-content: center; border-radius: 0; }
+.ivp-root:fullscreen .ivp-video { max-height: calc(100vh - 7rem); }
 .ivp-range { flex: 1 1 8rem; min-width: 6rem; height: var(--ivp-target); margin: 0; accent-color: var(--ivp-focus-dark); cursor: pointer; }
 .ivp-time { color: var(--ivp-on-dark-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ivp-rate {
@@ -222,6 +242,6 @@
 }
 
 @media (forced-colors: active) {
-  .ivp-btn, .ivp-choice, .ivp-card, .ivp-error, .ivp-solution-mark { border: 2px solid CanvasText; }
-  .ivp-cc[aria-pressed="true"] { outline: 3px solid Highlight; }
+  .ivp-btn, .ivp-choice, .ivp-card, .ivp-error, .ivp-solution-mark, .ivp-tap { border: 2px solid CanvasText; }
+  .ivp-cc[aria-pressed="true"], .ivp-fs[aria-pressed="true"] { outline: 3px solid Highlight; }
 }

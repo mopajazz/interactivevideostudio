@@ -38,6 +38,9 @@ export type MountOptions = {
 const END_SLACK = 0.25;
 /** A resumed learner starts this many seconds before the furthest point watched, for context. */
 const RESUME_LEAD = 2;
+/** If the video is not playing this long after our Play, the device may want a tap on the video itself. */
+const FIRST_PLAY_MS = 2000;
+const TAP_TO_START = 'Tap the video to start';
 
 export function mount(el: HTMLElement, project: Project, opts: MountOptions = {}): { destroy(): void } {
   const root = h('div', 'ivp-root');
@@ -46,7 +49,11 @@ export function mount(el: HTMLElement, project: Project, opts: MountOptions = {}
   video.inert = true; // the embed is never a keyboard or pointer target: our playbar is the only control
   const layer = h('div', 'ivp-layer');
   layer.hidden = true;
-  stage.append(video, layer);
+  // Shown only when a device refuses to start the video from our Play button (some mobile browsers want the first
+  // tap on the video itself). Visible text; the announcer says it too.
+  const tapNote = h('p', 'ivp-tap', TAP_TO_START);
+  tapNote.hidden = true;
+  stage.append(video, layer, tapNote);
   const announcer = new Announcer(root);
   const items = project.interactions;
   const questions = items.filter(isQuestion);
@@ -68,12 +75,22 @@ export function mount(el: HTMLElement, project: Project, opts: MountOptions = {}
   let failed = false; // a fatal player error: the playbar stays disabled from then on
   let reportedFloor = Math.floor(guard.furthest);
 
+  // Full screen goes on the player root (not the iframe), so checkpoint cards stay visible over the video.
+  const canFullscreen = typeof document !== 'undefined' && document.fullscreenEnabled === true && typeof root.requestFullscreen === 'function';
+  const toggleFullscreen = () => {
+    const p = document.fullscreenElement === root ? document.exitFullscreen?.() : root.requestFullscreen?.();
+    p?.catch?.(() => { /* refused (e.g. not from a user gesture): nothing changes */ });
+  };
+  const onFullscreenChange = () => playbar.setFullscreen(document.fullscreenElement === root);
+
   const playbar = new Playbar({
     onToggle: () => togglePlay(),
     onSeek: (t) => { adapter.seekTo(t); sample(adapter.getCurrentTime()); },
     onCaptions: (on) => adapter.setCaptions(on),
     onRate: (r) => adapter.setRate(r),
+    onFullscreen: canFullscreen ? toggleFullscreen : undefined,
   });
+  document.addEventListener('fullscreenchange', onFullscreenChange);
   root.append(stage, playbar.el);
   el.append(root);
 
@@ -159,7 +176,7 @@ export function mount(el: HTMLElement, project: Project, opts: MountOptions = {}
       if (atEnd()) return showFinal();
       if (failed) return stage.querySelector<HTMLElement>('.ivp-error a')?.focus();
       playbar.focusPlay();
-      adapter.play();
+      playVideo();
       return;
     }
     const card = buildCard(it, {
@@ -205,10 +222,36 @@ export function mount(el: HTMLElement, project: Project, opts: MountOptions = {}
   };
 
   let playing = false;
+  let firstPlayTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Back to normal: the embed is no control again, and the note goes. */
+  const endTapToStart = () => {
+    clearTimeout(firstPlayTimer);
+    firstPlayTimer = undefined;
+    if (tapNote.hidden) return;
+    tapNote.hidden = true;
+    video.inert = true;
+    video.classList.remove('is-tap-to-start');
+  };
+  /** Asks the video to play; if it still is not playing about 2 s later, lets the learner tap the video itself. */
+  const playVideo = () => {
+    clearTimeout(firstPlayTimer);
+    firstPlayTimer = setTimeout(() => {
+      firstPlayTimer = undefined;
+      if (playing || failed || closeModal) return;
+      video.inert = false;
+      video.classList.add('is-tap-to-start');
+      tapNote.hidden = false;
+      announcer.say(`${TAP_TO_START}.`);
+    }, FIRST_PLAY_MS);
+    adapter.play();
+  };
   const togglePlay = () => {
-    if (playing) return adapter.pause();
+    if (playing) {
+      endTapToStart();
+      return adapter.pause();
+    }
     sample(adapter.getCurrentTime()); // opens a card due now, e.g. at time 0
-    if (!closeModal) adapter.play();
+    if (!closeModal) playVideo();
   };
 
   adapter.on('time', (t: number) => sample(t));
@@ -218,12 +261,14 @@ export function mount(el: HTMLElement, project: Project, opts: MountOptions = {}
     playbar.setBuffering(false);
     playing = s === 'playing';
     playbar.setPlaying(playing);
+    if (playing) endTapToStart();
     if (s === 'paused') progress('pause');
     // A checkpoint just before the end may fall between polls: sample the end first.
     if (s === 'ended' && sample(duration())) showFinal();
   });
   adapter.on('error', (code: unknown) => {
     failed = true;
+    endTapToStart();
     adapter.pause();
     playbar.disable();
     stage.querySelector('.ivp-error')?.remove();
@@ -235,6 +280,8 @@ export function mount(el: HTMLElement, project: Project, opts: MountOptions = {}
 
   return {
     destroy() {
+      endTapToStart();
+      document.removeEventListener('fullscreenchange', onFullscreenChange);
       hide();
       adapter.destroy();
       root.remove();

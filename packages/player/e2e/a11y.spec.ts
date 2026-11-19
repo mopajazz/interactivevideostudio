@@ -66,6 +66,7 @@ test.describe('axe: no WCAG 2.2 A/AA violations', () => {
     await play(page);
     await advance(page, 2);
     await expect(page.locator('.ivp-play')).toHaveAccessibleName('Pause');
+    await expect(page.getByRole('button', { name: 'Full screen' })).toBeVisible(); // so the scan covers it
     await expectNoAxeViolations(page);
   });
 
@@ -192,6 +193,8 @@ test.describe('reflow at 320 CSS px (the same as 1280 px at 400% zoom)', () => {
   test('no sideways scrolling while playing, on a card, on the final screen and on the error panel', async ({ page }) => {
     await open(page);
     expect(await scrollsSideways(page), 'playbar').toBe(false);
+    const fs = (await page.getByRole('button', { name: 'Full screen' }).boundingBox())!;
+    expect(fs.x + fs.width, 'full screen button inside the 320 px viewport').toBeLessThanOrEqual(320);
     await play(page);
     await advance(page, 5);
     await expect(dialog(page)).toBeVisible();
@@ -227,6 +230,7 @@ test.describe('forced colors (Windows High Contrast)', () => {
   test('the Submit answers button and the focus ring keep a visible edge', async ({ page }) => {
     await open(page);
     expect((await edge(page.locator('.ivp-play'), 'border')).visible, 'play button border').toBe(true);
+    expect((await edge(page.locator('.ivp-fs'), 'border')).visible, 'full screen button border').toBe(true);
     await page.keyboard.press('Tab');
     await expect(page.locator('.ivp-play')).toBeFocused();
     expect((await edge(page.locator('.ivp-play'), 'outline')).visible, 'focus ring').toBe(true);

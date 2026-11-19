@@ -2,6 +2,7 @@ import { button, h } from './dom';
 
 const RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
 const ICON_PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5v14l11-7z"/></svg>';
+const ICON_FS = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 4h6v2H6v4H4zm10 0h6v6h-2V6h-4zM4 14h2v4h4v2H4zm14 0h2v6h-6v-2h4z"/></svg>';
 const ICON_PAUSE = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
 
 /** "1:05", or "1:02:05" past an hour. */
@@ -29,6 +30,8 @@ export type PlaybarHandlers = {
   onSeek: (t: number) => void;
   onCaptions: (on: boolean) => void;
   onRate: (r: number) => void;
+  /** Absent: no full-screen button (the page may not go full screen). */
+  onFullscreen?: () => void;
 };
 
 /** Our own playbar, used whether or not forward scrubbing is locked. All controls are native elements. */
@@ -39,6 +42,7 @@ export class Playbar {
   private time = h('span', 'ivp-time', '0:00 / 0:00');
   private cc = button('Captions', 'ivp-btn ivp-cc');
   private rate = h('select', 'ivp-rate');
+  private fs = button('', 'ivp-btn ivp-icon ivp-fs');
   private status = h('span', 'ivp-status');
   private dragging = false;
   private duration = 0;
@@ -75,9 +79,16 @@ export class Playbar {
     }
     this.rate.addEventListener('change', () => hd.onRate(Number(this.rate.value)));
 
+    // A static name with aria-pressed for the state, like Captions.
+    this.fs.setAttribute('aria-label', 'Full screen');
+    this.fs.setAttribute('aria-pressed', 'false');
+    this.fs.innerHTML = ICON_FS; // static markup, no author content
+    this.fs.hidden = !hd.onFullscreen;
+    this.fs.addEventListener('click', () => hd.onFullscreen?.());
+
     this.status.setAttribute('role', 'status');
     this.time.setAttribute('aria-hidden', 'true'); // the slider's aria-valuetext carries the same information
-    this.el.append(this.play, this.range, this.time, this.cc, this.rate, this.status);
+    this.el.append(this.play, this.range, this.time, this.cc, this.rate, this.fs, this.status);
   }
 
   setPlaying(playing: boolean) {
@@ -98,13 +109,16 @@ export class Playbar {
     this.showTime(t);
   }
 
+  /** Mirrors document.fullscreenElement, however full screen was entered or left. */
+  setFullscreen(on: boolean) { this.fs.setAttribute('aria-pressed', String(on)); }
+
   focusPlay() { this.play.focus(); }
 
   /** After a fatal error: the controls can do nothing, so they leave the Tab order and say they are unavailable. */
   disable() {
     this.el.inert = true;
     this.el.classList.add('is-disabled');
-    for (const c of [this.play, this.range, this.cc, this.rate]) c.setAttribute('aria-disabled', 'true');
+    for (const c of [this.play, this.range, this.cc, this.rate, this.fs]) c.setAttribute('aria-disabled', 'true');
   }
 
   private showTime(t: number) {
