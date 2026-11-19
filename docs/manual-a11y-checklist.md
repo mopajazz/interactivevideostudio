@@ -38,6 +38,7 @@ For each step, compare what you hear with **Expected**. Mark Pass only if the wh
 | E13 | In the preview, play until the question appears. Press Escape. | The preview closes even though the question is waiting, and focus is back on "Preview as learner". |
 | E14 | Press "Start new project", then Escape. | A dialog "Start a new project?" is read with focus on Cancel; Escape closes it and focus returns to "Start new project". |
 | E15 | In a question field, use the formatting toolbar (Tab into it, arrow keys across it, Enter on Bold). | The toolbar is read as "Formatting for Question"; each button is read by name with pressed or not pressed; typing then is bold. Note anything confusing about how the editing area itself is read. |
+| E16 | On Step 3, Tab to "Let learners try a question again" and "Show the correct answer after checking" and press Space on each. Then Tab to "I've checked that this video has captions" (leave it unticked) and export. | Each switch is read with its name, its state (on/off or checked/not checked) changing with each press, and its explanation. The checkbox is read in a group "Before you export", with its explanation that it never blocks export. The export message announced ends with "Reminder: confirm your video has captions." |
 
 ## Part 2: Learner player
 
@@ -50,12 +51,14 @@ For each step, compare what you hear with **Expected**. Mark Pass only if the wh
 | L5 | Let the video play to the first question. | The video pauses. "Video paused." is announced once, and the dialog's name ("Question") and the question text are read. Focus is in the card. Nothing is said twice. |
 | L6 | Tab around the card and Shift+Tab back. | Focus stays in the card; the choices are read as a group with "Choose one answer." (or "Choose all that apply."). |
 | L7 | Press "Check answer" with nothing chosen. | "Choose an answer first." is announced. |
-| L8 | Choose a wrong answer and press "Check answer". | "Incorrect." and the author's feedback are announced; focus moves to "Continue". |
+| L8 | Choose a wrong answer and press "Check answer". | "Incorrect.", the author's feedback and (with the default settings) "Correct answer: …" are announced; focus moves to "Continue". |
 | L9 | Press Continue. | The card closes; focus is back on the playbar ("Pause"); the video plays on. |
 | L10 | At an info card (Note, Link, Image), press Escape. | The card closes and focus returns to the playbar. On a Link card, "Open link" is read as a link (note whether you are told it opens a new tab; nothing in the player says so yet). On an Image card, the alt text is read. |
 | L11 | Play to the end. | A dialog named "End of video" opens with focus in it; "End of video" is not announced a second time. "Submit answers" is read as a button. |
 | L12 | Press "Submit answers". | The score, "… of … correct" and "Passed" or "Not passed" are announced, and focus moves to the result. |
 | L13 | (Optional) Launch a package whose video doesn't allow embedding. | The message is read as an alert, with a "Watch on YouTube" link. Tab goes to that link; the playbar controls are not reachable. |
+| L14 | Use a package with "Let learners try a question again" on. At a question, choose a wrong answer and press "Check answer". Shift+Tab to "Try again" and press Enter. | After the check, "Incorrect." and the feedback are announced once, with no correct answer given; focus is on "Continue" and Shift+Tab reaches "Try again". After "Try again", "Try again. Choose an answer." is announced once, focus is on the first choice, nothing is chosen and the choices can be used again. |
+| L15 | In the same package, now choose the right answer and press "Check answer". In a package with retry off (the default), check a wrong answer. | "Correct." is announced, then the feedback, then "Correct answer: …" (in the retry-off package, "Incorrect." then "Correct answer: …"), each said once. Arrowing over the choices, the correct one is read with "Correct answer" as part of its name. No "Try again" is offered after a correct answer, or ever with retry off. |
 
 ## Results
 
@@ -93,6 +96,8 @@ Fill in one row per step and pairing. Use Pass, Fail, or N/A (with the reason in
 | E14 | | | macOS, Safari | VoiceOver | PENDING | |
 | E15 | | | Windows, Chrome | NVDA | PENDING | |
 | E15 | | | macOS, Safari | VoiceOver | PENDING | |
+| E16 | | | Windows, Chrome | NVDA | PENDING | |
+| E16 | | | macOS, Safari | VoiceOver | PENDING | |
 | L1 | | | Windows, Chrome | NVDA | PENDING | |
 | L1 | | | macOS, Safari | VoiceOver | PENDING | |
 | L2 | | | Windows, Chrome | NVDA | PENDING | |
@@ -119,5 +124,9 @@ Fill in one row per step and pairing. Use Pass, Fail, or N/A (with the reason in
 | L12 | | | macOS, Safari | VoiceOver | PENDING | |
 | L13 | | | Windows, Chrome | NVDA | PENDING | |
 | L13 | | | macOS, Safari | VoiceOver | PENDING | |
+| L14 | | | Windows, Chrome | NVDA | PENDING | |
+| L14 | | | macOS, Safari | VoiceOver | PENDING | |
+| L15 | | | Windows, Chrome | NVDA | PENDING | |
+| L15 | | | macOS, Safari | VoiceOver | PENDING | |
 
 When a step fails, also note it in [accessibility-statement.md](accessibility-statement.md) under "Known gaps" until it is fixed.
