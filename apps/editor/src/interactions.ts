@@ -41,10 +41,12 @@ function blank(type: InteractionType): Partial<Interaction> {
   }
 }
 
-/** Adds an empty checkpoint of `type` at `time` (clamped), after every existing one in play order. Pure. */
-export function addInteraction(p: Project, type: InteractionType, time: number): Project {
+/**
+ * Adds an empty checkpoint of `type` at `time` (clamped), after every existing one in play order. Pure apart from
+ * the random id; pass `id` (e.g. from randomId) when the caller needs to know it, such as to select the new one.
+ */
+export function addInteraction(p: Project, type: InteractionType, time: number, id = randomId('i', p.interactions.map((i) => i.id))): Project {
   const order = Math.max(0, ...p.interactions.map((i) => i.order)) + 1;
-  const id = randomId('i', p.interactions.map((i) => i.id));
   const it: Interaction = { id, type, time: clampTime(p, time), order, promptHtml: '', ...blank(type) };
   return { ...p, interactions: [...p.interactions, it] };
 }

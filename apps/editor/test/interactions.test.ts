@@ -7,6 +7,7 @@ import {
   maxTime,
   moveInteraction,
   outOfRange,
+  randomId,
   removeChoice,
   removeInteraction,
   setCorrect,
@@ -115,6 +116,12 @@ describe('random ids (Ruling 24)', () => {
     const other = only(addInteraction(video(), 'multipleChoice', 1));
     expect(other.choices!.map((c) => c.id)).not.toEqual(mc.choices!.slice(0, 2).map((c) => c.id));
     expect(only(addInteraction(video(), 'trueFalse', 1)).choices!.map((c) => c.id)).toEqual(['true', 'false']);
+  });
+
+  it('uses the id it is given, so a caller can select the new checkpoint', () => {
+    const id = randomId('i');
+    expect(id).toMatch(CHECKPOINT);
+    expect(only(addInteraction(video(), 'text', 1, id)).id).toBe(id);
   });
 
   it('existing ids are never changed by adding, editing or moving', () => {

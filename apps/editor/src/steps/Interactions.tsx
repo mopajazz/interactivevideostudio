@@ -7,7 +7,7 @@ import { Scrubber } from '../components/Scrubber';
 import { Timeline } from '../components/Timeline';
 import { ToolBar } from '../components/ToolBar';
 import {
-  addInteraction, checkpointName, maxTime, moveInteraction, removeInteraction, sortedInteractions, updateInteraction,
+  addInteraction, checkpointName, randomId, maxTime, moveInteraction, removeInteraction, sortedInteractions, updateInteraction,
 } from '../interactions';
 import type { Step } from '../storage/projectStore';
 import { newAssetId } from '../storage/images';
@@ -93,8 +93,8 @@ export function Interactions({ project, onChange, assets, addAsset, removeAsset,
   const add = (type: InteractionType) => {
     adapter.current?.pause();
     const t = now();
-    const id = addInteraction(project, type, t).interactions.at(-1)!.id;
-    onChange((p) => addInteraction(p, type, t));
+    const id = randomId('i', project.interactions.map((i) => i.id)); // chosen once, so the new checkpoint can be selected
+    onChange((p) => addInteraction(p, type, t, id));
     setSelectedId(id);
     focusAfter.current = 'drawer';
   };
