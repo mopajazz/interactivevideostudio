@@ -49,6 +49,20 @@ async function previewWithCard(page: Page) {
   return card;
 }
 
+/**
+ * The learner card ignores a click on a button it has just swapped in (its double-click guard, SWAP_GUARD_MS). This
+ * makes the player's clock step past that window on every read, as the player's own test page does, so a test's quick
+ * deliberate clicks are never dropped. It patches the same module instance the app loaded.
+ */
+const stepPlayerClock = (page: Page) =>
+  page.evaluate(async () => {
+    const url = performance.getEntriesByType('resource').map((e) => e.name).find((n) => /\/packages\/player\/src\/ui\/card\.ts/.test(n));
+    if (!url) throw new Error('player card module not loaded');
+    const m = await import(/* @vite-ignore */ url);
+    let t = 0;
+    m.clock.now = () => (t += m.SWAP_GUARD_MS);
+  });
+
 const MODES = [
   { name: 'light', colorScheme: 'light', reducedMotion: 'no-preference' },
   { name: 'dark', colorScheme: 'dark', reducedMotion: 'no-preference' },
@@ -175,6 +189,7 @@ for (const mode of MODES) {
       await toStep3(page);
       await page.getByRole('switch', { name: 'Let learners try a question again' }).click();
       await page.getByRole('button', { name: 'Back: Interactions' }).click();
+      await stepPlayerClock(page);
       await previewButton(page).click();
       await preview(page).getByRole('button', { name: 'Play', exact: true }).click();
       await fake(page, 'advance(6)');

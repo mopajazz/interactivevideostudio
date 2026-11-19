@@ -37,12 +37,17 @@ export function openModal(layer: HTMLElement, card: HTMLElement, o: { background
   const onFocusIn = (e: FocusEvent) => {
     if (e.target instanceof Node && !card.contains(e.target) && e.target !== before && e.target !== after) card.focus();
   };
+  // A press on the dimmed backdrop (such as a double-click's second press after the card's buttons moved) must not
+  // move focus to the page body, where the focusin backstop can't see it.
+  const onBackdrop = (e: MouseEvent) => { if (e.target === layer) e.preventDefault(); };
   card.addEventListener('keydown', onKey);
   document.addEventListener('focusin', onFocusIn);
+  layer.addEventListener('mousedown', onBackdrop);
 
   return () => {
     card.removeEventListener('keydown', onKey);
     document.removeEventListener('focusin', onFocusIn);
+    layer.removeEventListener('mousedown', onBackdrop);
     before.remove();
     card.remove();
     after.remove();

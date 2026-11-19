@@ -289,3 +289,143 @@ test.describe('show solution', () => {
     expect(await page.evaluate(() => (window as any).__xss)).toBeUndefined();
   });
 });
+
+test.describe('double activation: a button swapped in under the pointer or focus ignores it for a moment', () => {
+  // ?clock=manual stops the card's clock; __tick moves it on, so "after the window" needs no sleep.
+  const WINDOW = 400;
+  const tick = (page: Page, ms = WINDOW) => page.evaluate((m) => (window as any).__tick(m), ms);
+  const checkBtn = (page: Page) => dialog(page).getByRole('button', { name: 'Check answer' });
+  const cont = (page: Page) => dialog(page).getByRole('button', { name: 'Continue' });
+  const radiosLocked = async (page: Page, locked: boolean) => {
+    for (const r of await dialog(page).getByRole('radio').all()) await (locked ? expect(r).toBeDisabled() : expect(r).toBeEnabled());
+  };
+
+  test('double-clicking "Check answer" on a wrong answer (retry on) keeps the feedback; "Try again" works later', async ({ page }) => {
+    await open(page, '&retry=1&clock=manual');
+    await toFirstQuestion(page);
+    await dialog(page).getByRole('radio', { name: 'Green' }).check();
+    await checkBtn(page).dblclick();
+    await expect(dialog(page).getByText('No, that is grass.')).toBeVisible();
+    await radiosLocked(page, true);
+    await expect(tryAgain(page)).toBeVisible();
+    expect(await said(page)).toEqual(['Video paused.', 'Incorrect. No, that is grass.']);
+    await tick(page);
+    await tryAgain(page).click();
+    await expect(dialog(page).getByRole('radio', { name: 'Blue' })).toBeFocused();
+    expect((await said(page)).at(-1)).toBe('Try again. Choose an answer.');
+  });
+
+  test('double-clicking "Try again" shows no "Choose an answer first."; the choices are unlocked and focused', async ({ page }) => {
+    await open(page, '&retry=1&clock=manual');
+    await toFirstQuestion(page);
+    await check(page, 'Green');
+    await tick(page);
+    await tryAgain(page).dblclick();
+    await expect(dialog(page).getByRole('radio', { name: 'Blue' })).toBeFocused();
+    await radiosLocked(page, false);
+    await expect(dialog(page).getByText('Choose an answer first.')).toHaveCount(0);
+    expect(await said(page)).not.toContain('Choose an answer first.');
+    // A deliberate check after the window works.
+    await tick(page);
+    await check(page, 'Blue');
+    await expect(dialog(page).getByText('Yes, blue.')).toBeVisible();
+  });
+
+  // In this test page the feedback pushes the buttons down, so a real double-click's second press misses the new
+  // button. These click the swapped-in button itself, with the clock still inside the window, as the second press of
+  // a double-click does when the layout does not move it.
+  test('a click on "Try again" or "Continue" just after they replace "Check answer" is ignored', async ({ page }) => {
+    await open(page, '&retry=1&clock=manual');
+    await toFirstQuestion(page);
+    await check(page, 'Green');
+    await tryAgain(page).click();
+    await expect(dialog(page).getByText('No, that is grass.')).toBeVisible();
+    await radiosLocked(page, true);
+    await cont(page).click();
+    await expect(dialog(page)).toHaveAccessibleName('Question');
+    expect(await said(page)).toEqual(['Video paused.', 'Incorrect. No, that is grass.']);
+    await tick(page, WINDOW - 1);
+    await cont(page).click();
+    await expect(dialog(page)).toHaveAccessibleName('Question');
+    await tick(page, 1);
+    await tryAgain(page).click();
+    await expect(dialog(page).getByRole('radio', { name: 'Blue' })).toBeFocused();
+  });
+
+  test('a click on "Check answer" just after it replaces "Try again" is ignored', async ({ page }) => {
+    await open(page, '&retry=1&clock=manual');
+    await toFirstQuestion(page);
+    await check(page, 'Green');
+    await tick(page);
+    await tryAgain(page).click();
+    await checkBtn(page).click();
+    await expect(dialog(page).getByText('Choose an answer first.')).toHaveCount(0);
+    expect(await said(page)).not.toContain('Choose an answer first.');
+    await tick(page);
+    await checkBtn(page).click();
+    await expect(dialog(page).getByText('Choose an answer first.')).toBeVisible();
+  });
+
+  test('a click on "Continue" just after a correct check (no retry) is ignored, so the feedback is not skipped', async ({ page }) => {
+    await open(page, '&clock=manual');
+    await toFirstQuestion(page);
+    await check(page, 'Blue');
+    await cont(page).click();
+    await expect(dialog(page).getByText('Yes, blue.')).toBeVisible();
+    await tick(page);
+    await cont(page).click();
+    await expect(dialog(page)).toHaveCount(0);
+  });
+
+  test('a rapid double Enter on "Check answer" does not go through "Continue"', async ({ page }) => {
+    await open(page, '&retry=1&clock=manual');
+    await toFirstQuestion(page);
+    await dialog(page).getByRole('radio', { name: 'Green' }).check();
+    await checkBtn(page).focus();
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Enter');
+    await expect(cont(page)).toBeFocused();
+    await expect(dialog(page).getByText('No, that is grass.')).toBeVisible();
+    await expect(tryAgain(page)).toBeVisible();
+    await tick(page);
+    await page.keyboard.press('Enter');
+    await expect(dialog(page)).toHaveCount(0);
+  });
+
+  test('double-clicking "Check answer" on a correct answer (no retry) does not skip the feedback via "Continue"', async ({ page }) => {
+    await open(page, '&clock=manual');
+    await toFirstQuestion(page);
+    await dialog(page).getByRole('radio', { name: 'Blue' }).check();
+    await checkBtn(page).dblclick();
+    await expect(dialog(page)).toHaveAccessibleName('Question');
+    await expect(dialog(page).getByText('Yes, blue.')).toBeVisible();
+    await tick(page);
+    await cont(page).click();
+    await expect(dialog(page)).toHaveCount(0);
+  });
+
+  test('true/false: a double-click on "Check answer", wrong with retry and right without, never clicks through', async ({ page }) => {
+    await open(page, '&retry=1&clock=manual');
+    await toFirstQuestion(page);
+    await check(page, 'Blue');
+    await tick(page);
+    await cont(page).click();
+    await advance(page, 5);
+    await expect(dialog(page)).toHaveAccessibleName('True or false');
+    await dialog(page).getByRole('radio', { name: 'True' }).check();
+    await checkBtn(page).dblclick();
+    await expect(dialog(page).getByText('It is wet.')).toBeVisible();
+    await radiosLocked(page, true);
+    await tryAgain(page).click(); // still inside the window
+    await radiosLocked(page, true);
+    expect(await said(page)).not.toContain('Try again. Choose an answer.');
+    await tick(page);
+    await tryAgain(page).click();
+    await dialog(page).getByRole('radio', { name: 'False' }).check();
+    await tick(page);
+    await checkBtn(page).dblclick();
+    await cont(page).click(); // still inside the window
+    await expect(dialog(page)).toHaveAccessibleName('True or false');
+    await expect(dialog(page).getByText('Right, it is wet.')).toBeVisible();
+  });
+});

@@ -25,6 +25,30 @@ export type CardOptions = {
 
 const SAFE_URL = /^(https?:|mailto:)/i;
 
+/** The card's time source, replaceable by the test page (?clock=manual) so tests never need to sleep. */
+export const clock = { now: () => performance.now() };
+
+/**
+ * How long a button swapped into the card ("Try again" and "Continue" after a check, "Check answer" after "Try
+ * again") ignores activation. The swap happens on the first press, so without this the second press of a
+ * double-click or a quick double Enter would land on the new button: skipping the feedback, or wiping it.
+ * Clicks only (Enter and Space on a button arrive as clicks too); nothing is disabled and nothing moves.
+ */
+export const SWAP_GUARD_MS = 400;
+const swappedAt = new WeakMap<HTMLElement, number>();
+
+/** Marks buttons as just swapped in. */
+const armSwap = (...buttons: HTMLElement[]) => buttons.forEach((b) => swappedAt.set(b, clock.now()));
+
+/** Runs `fn` on click, except within SWAP_GUARD_MS of the button being swapped in. */
+function onActivate(b: HTMLElement, fn: () => void): void {
+  b.addEventListener('click', () => {
+    const at = swappedAt.get(b);
+    if (at !== undefined && clock.now() - at < SWAP_GUARD_MS) return;
+    fn();
+  });
+}
+
 /** Builds the full-frame card for one interaction. Escape may close it only when it is not a scored question. */
 export function buildCard(it: Interaction, o: CardOptions): { el: HTMLElement; escapable: boolean } {
   const el = h('section', 'ivp-card');
@@ -38,7 +62,7 @@ export function buildCard(it: Interaction, o: CardOptions): { el: HTMLElement; e
 
   const actions = h('div', 'ivp-actions');
   const cont = button('Continue', 'ivp-btn ivp-btn-primary');
-  cont.addEventListener('click', () => o.onDone());
+  onActivate(cont, () => o.onDone());
 
   if (it.type === 'image' && it.imageAssetId) {
     const img = h('img', 'ivp-image');
@@ -120,7 +144,7 @@ function buildQuestion(it: Interaction, o: CardOptions, actions: HTMLElement, co
   const check = button('Check answer', 'ivp-btn ivp-btn-primary');
   const retry = button('Try again', 'ivp-btn');
 
-  check.addEventListener('click', () => {
+  onActivate(check, () => {
     const chosen = inputs.filter((i) => i.checked).map((i) => i.value);
     if (chosen.length === 0) {
       const text = 'Choose an answer first.';
@@ -163,19 +187,22 @@ function buildQuestion(it: Interaction, o: CardOptions, actions: HTMLElement, co
     }
     feedback.hidden = false;
     o.announcer.say(said.join(' '));
-    check.replaceWith(...(canRetry ? [retry, cont] : [cont]));
+    const next = canRetry ? [retry, cont] : [cont];
+    armSwap(...next);
+    check.replaceWith(...next);
     cont.focus();
   });
 
   // Back to the unchecked state: choices enabled and cleared, no verdict, "Check answer" again. The held answer stays
   // the last one checked until the learner checks a new one.
-  retry.addEventListener('click', () => {
+  onActivate(retry, () => {
     inputs.forEach((i) => { i.disabled = false; i.checked = false; });
     feedback.hidden = true;
     feedback.className = 'ivp-feedback';
     feedback.replaceChildren();
     inputs[0]?.focus(); // before the focused "Try again" goes, so focus never drops out of the card
     retry.remove();
+    armSwap(check);
     cont.replaceWith(check);
     o.announcer.say('Try again. Choose an answer.');
   });
