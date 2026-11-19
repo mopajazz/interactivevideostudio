@@ -1,4 +1,4 @@
-import type { SuspendState } from '@ivt/schema';
+import type { Interaction, SuspendState } from '@ivt/schema';
 
 // Format: v1|<count>|<hash>|<furthest>|<submitted 0|1>|<idx>=<id>,<id>,;<idx>=...
 // count and hash (FNV-1a 32 of orderedIds) fingerprint the question list: a changed
@@ -17,6 +17,28 @@ function fingerprint(ids: string[]): string {
   return h.toString(16).padStart(8, '0');
 }
 
+/** Replaces each lone UTF-16 surrogate with U+FFFD, so encodeURIComponent never throws (String#toWellFormed). */
+function wellFormed(s: string): string {
+  let out = '';
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c >= 0xd800 && c <= 0xdbff) {
+      const d = s.charCodeAt(i + 1);
+      if (d >= 0xdc00 && d <= 0xdfff) {
+        out += s[i]! + s[i + 1]!;
+        i++;
+        continue;
+      }
+      out += '\uFFFD';
+    } else if (c >= 0xdc00 && c <= 0xdfff) {
+      out += '\uFFFD';
+    } else {
+      out += s[i]!;
+    }
+  }
+  return out;
+}
+
 function build(ids: string[], furthest: number, submitted: boolean, body: string): string {
   return `${PREFIX}|${ids.length}|${fingerprint(ids)}|${furthest}|${submitted ? 1 : 0}|${body}`;
 }
@@ -26,7 +48,7 @@ export function encodeSuspend(s: SuspendState, orderedIds: string[], limit = 409
   const parts: string[] = [];
   orderedIds.forEach((id, i) => {
     const a = s.answers[id];
-    if (Array.isArray(a)) parts.push(`${i}=${a.map((c) => encodeURIComponent(c) + ',').join('')}`);
+    if (Array.isArray(a)) parts.push(`${i}=${a.map((c) => encodeURIComponent(wellFormed(String(c))) + ',').join('')}`);
   });
   const full = build(orderedIds, furthest, s.submitted, parts.join(';'));
   return full.length <= limit ? full : build(orderedIds, furthest, s.submitted, '');
@@ -55,4 +77,36 @@ export function decodeSuspend(raw: string, orderedIds: string[]): SuspendState |
     }
   }
   return { furthest: Number(fur), answers, submitted: sub === '1' };
+}
+
+/**
+ * The fingerprint keys the launch uses for a project: `${id}:${type}:${choice ids}` per interaction, in project
+ * order. A structural edit (checkpoint added, removed or reordered, a type changed, a choice added, removed or
+ * replaced) changes them, so saved answers are dropped and the learner starts again; a wording-only edit does not.
+ */
+export const suspendKeys = (items: Interaction[]): string[] =>
+  items.map((i) => `${i.id}:${i.type}:${(i.choices ?? []).map((c) => c.id).join(',')}`);
+
+/** encodeSuspend for a project: answers (keyed by interaction id) are stored against suspendKeys(items). */
+export function encodeProjectSuspend(s: SuspendState, items: Interaction[], limit = 4096): string {
+  const keys = suspendKeys(items);
+  const answers: Record<string, string[]> = {};
+  items.forEach((it, i) => {
+    const a = s.answers[it.id];
+    if (a !== undefined) answers[keys[i]!] = a;
+  });
+  return encodeSuspend({ ...s, answers }, keys, limit);
+}
+
+/** decodeSuspend for a project: null unless the saved keys match suspendKeys(items); answers come back keyed by id. */
+export function decodeProjectSuspend(raw: string, items: Interaction[]): SuspendState | null {
+  const keys = suspendKeys(items);
+  const d = decodeSuspend(raw, keys);
+  if (!d) return null;
+  const answers: Record<string, string[]> = {};
+  items.forEach((it, i) => {
+    const a = d.answers[keys[i]!];
+    if (a !== undefined) answers[it.id] = a;
+  });
+  return { ...d, answers };
 }

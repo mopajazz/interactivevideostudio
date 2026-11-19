@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { validateProject, type Project } from '@ivt/schema';
 import { ScoreState, type mount } from '@ivt/player';
 import { start } from '../src/launch';
-import { decodeSuspend, encodeSuspend } from '../src/suspend';
+import { decodeProjectSuspend, decodeSuspend, encodeProjectSuspend, suspendKeys } from '../src/suspend';
 
 // The LMS acceptance sample (examples/lms-acceptance-sample.json) through the real player scoring and the launch
 // wiring, against a recording fake of the SCORM 1.2 API: the values an LMS should receive in each case.
@@ -71,21 +71,43 @@ describe('LMS acceptance sample: what the LMS is told', () => {
 });
 
 describe('LMS acceptance sample: resume data across a re-upload', () => {
-  const ids = (p: Project) => p.interactions.map((i) => i.id);
-  const saved = encodeSuspend({ furthest: 90, answers: { i2: ['c1'] }, submitted: false }, ids(sample));
+  const saved = encodeProjectSuspend({ furthest: 90, answers: { i2: ['c1'] }, submitted: false }, sample.interactions);
+  const decode = (p: Project) => decodeProjectSuspend(saved, p.interactions);
+  const edit = (id: string, f: (i: Project['interactions'][number]) => Project['interactions'][number]): Project =>
+    ({ ...sample, interactions: sample.interactions.map((i) => (i.id === id ? f(i) : i)) });
 
   it('resumes when the package is unchanged', () => {
-    expect(decodeSuspend(saved, ids(sample))).toMatchObject({ furthest: 90, answers: { i2: ['c1'] } });
+    expect(decode(sample)).toMatchObject({ furthest: 90, answers: { i2: ['c1'] } });
   });
 
   it('restarts cleanly when a checkpoint is added or removed', () => {
     const added: Project = { ...sample, interactions: [...sample.interactions, { id: 'i8', type: 'text', time: 250, order: 8, promptHtml: '<p>x</p>' }] };
-    expect(decodeSuspend(saved, ids(added))).toBeNull();
-    expect(decodeSuspend(saved, ids({ ...sample, interactions: sample.interactions.slice(1) }))).toBeNull();
+    expect(decode(added)).toBeNull();
+    expect(decode({ ...sample, interactions: sample.interactions.slice(1) })).toBeNull();
   });
 
-  it('still resumes after a wording-only edit, because the fingerprint covers checkpoint ids, not their text', () => {
-    const edited: Project = { ...sample, interactions: sample.interactions.map((i) => (i.id === 'i2' ? { ...i, promptHtml: '<p>Reworded?</p>' } : i)) };
-    expect(decodeSuspend(saved, ids(edited))).toMatchObject({ furthest: 90 });
+  it('still resumes after a wording-only edit, because the fingerprint covers ids, types and choice ids, not text', () => {
+    const edited = edit('i2', (i) => ({ ...i, promptHtml: '<p>Reworded?</p>', choices: i.choices!.map((c) => ({ ...c, html: `${c.html}!` })) }));
+    expect(decode(edited)).toMatchObject({ furthest: 90, answers: { i2: ['c1'] } });
+  });
+
+  it('restarts when a question changes type', () => {
+    const retyped = edit('i2', (i) => ({ ...i, type: 'trueFalse' }));
+    expect(decode(retyped)).toBeNull();
+    expect(decodeSuspend(saved, suspendKeys(retyped.interactions))).toBeNull();
+  });
+
+  it('restarts when a choice is replaced, added or removed', () => {
+    const replaced = edit('i2', (i) => ({ ...i, choices: i.choices!.map((c, n) => (n === 0 ? { ...c, id: 'cZZZZZZZZ' } : c)) }));
+    expect(decodeSuspend(saved, suspendKeys(replaced.interactions))).toBeNull();
+    const added = edit('i2', (i) => ({ ...i, choices: [...i.choices!, { id: 'cnew', html: 'New', correct: false }] }));
+    expect(decode(added)).toBeNull();
+    const removed = edit('i2', (i) => ({ ...i, choices: i.choices!.slice(0, -1) }));
+    expect(decode(removed)).toBeNull();
+  });
+
+  it('keys are id:type:choice ids per interaction', () => {
+    expect(suspendKeys([{ id: 'iA', type: 'multipleChoice', time: 1, order: 0, promptHtml: '', choices: [{ id: 'c1', html: '', correct: true }, { id: 'c2', html: '', correct: false }] }, { id: 'iB', type: 'text', time: 2, order: 1, promptHtml: '' }]))
+      .toEqual(['iA:multipleChoice:c1,c2', 'iB:text:']);
   });
 });

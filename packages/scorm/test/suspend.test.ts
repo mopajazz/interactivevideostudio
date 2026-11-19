@@ -32,6 +32,13 @@ describe('suspend data', () => {
     expect(raw.split('|')).toHaveLength(6);
   });
 
+  it('never throws on a lone surrogate in a choice id (it is stored as U+FFFD)', () => {
+    const s: SuspendState = { furthest: 1, answers: { a: ['x\uD800', '\uDC00y', 'ok 😀'] }, submitted: false };
+    let raw = '';
+    expect(() => (raw = encodeSuspend(s, ids))).not.toThrow();
+    expect(decodeSuspend(raw, ids)!.answers).toEqual({ a: ['x�', '�y', 'ok 😀'] });
+  });
+
   it('keys answers by index, not id', () => {
     const raw = encodeSuspend({ furthest: 0, answers: { c: ['q'] }, submitted: false }, ids);
     expect(raw).not.toContain('c=');
