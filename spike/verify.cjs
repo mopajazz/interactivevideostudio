@@ -4,7 +4,7 @@ const { chromium } = require('playwright');
 const path = require('path');
 const assert = require('assert');
 (async () => {
-  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
+  const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ['--no-sandbox'] });
   const page = await browser.newPage();
   await page.goto('file://' + path.resolve(__dirname, 'index.html') + '?stub=1&at=3');
   const calls = () => page.evaluate(() => window.__stub.calls);

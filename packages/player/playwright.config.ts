@@ -5,7 +5,8 @@ export default defineConfig({
   reporter: 'list',
   use: {
     baseURL: 'http://localhost:5174',
-    launchOptions: { executablePath: '/opt/pw-browsers/chromium' },
+    // Set CHROMIUM_PATH to use a Chromium already on the machine; unset, Playwright uses its own installed browser.
+    launchOptions: { executablePath: process.env.CHROMIUM_PATH || undefined },
   },
   webServer: {
     command: 'pnpm exec vite --logLevel error',
