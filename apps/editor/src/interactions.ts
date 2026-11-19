@@ -6,18 +6,31 @@ export const maxTime = (p: Project) => Math.max(0, p.duration - 0.5);
 
 export const clampTime = (p: Project, t: number) => (Number.isFinite(t) ? Math.min(Math.max(0, t), maxTime(p)) : 0);
 
-/** Next "<prefix><n>" after the highest n already used, so ids stay unique within the list. */
-function nextId(prefix: string, ids: string[]): string {
-  const re = new RegExp(`^${prefix}(\\d+)$`);
-  const used = ids.map((id) => Number(re.exec(id)?.[1] ?? 0));
-  return `${prefix}${Math.max(0, ...used) + 1}`;
+const BASE36 = '0123456789abcdefghijklmnopqrstuvwxyz';
+
+/**
+ * `<prefix>` plus 8 random base-36 characters, not already in `ids`. Random rather than "next number", so a
+ * checkpoint or choice deleted and then re-added never comes back with the old id: the exported package's resume
+ * fingerprint (id, type, choice ids) then tells the two apart and old answers are not carried over.
+ */
+export function randomId(prefix: string, ids: string[] = []): string {
+  const taken = new Set(ids);
+  for (;;) {
+    let id = prefix;
+    for (const b of crypto.getRandomValues(new Uint8Array(8))) id += BASE36[b % 36];
+    if (!taken.has(id)) return id;
+  }
 }
 
 function blank(type: InteractionType): Partial<Interaction> {
   switch (type) {
     case 'multipleChoice':
-      return { choices: [{ id: 'c1', html: '', correct: true }, { id: 'c2', html: '', correct: false }] };
+    {
+      const first = randomId('c');
+      return { choices: [{ id: first, html: '', correct: true }, { id: randomId('c', [first]), html: '', correct: false }] };
+    }
     case 'trueFalse':
+      // Fixed ids: the two choices are the question's structure, not author content.
       return { choices: [{ id: 'true', html: 'True', correct: true }, { id: 'false', html: 'False', correct: false }] };
     case 'link':
       return { url: '' };
@@ -31,7 +44,7 @@ function blank(type: InteractionType): Partial<Interaction> {
 /** Adds an empty checkpoint of `type` at `time` (clamped), after every existing one in play order. Pure. */
 export function addInteraction(p: Project, type: InteractionType, time: number): Project {
   const order = Math.max(0, ...p.interactions.map((i) => i.order)) + 1;
-  const id = nextId('i', p.interactions.map((i) => i.id));
+  const id = randomId('i', p.interactions.map((i) => i.id));
   const it: Interaction = { id, type, time: clampTime(p, time), order, promptHtml: '', ...blank(type) };
   return { ...p, interactions: [...p.interactions, it] };
 }
@@ -57,7 +70,7 @@ export const removeInteraction = (p: Project, id: string): Project => ({ ...p, i
 
 export function addChoice(it: Interaction): Interaction {
   const choices = it.choices ?? [];
-  return { ...it, choices: [...choices, { id: nextId('c', choices.map((c) => c.id)), html: '', correct: false }] };
+  return { ...it, choices: [...choices, { id: randomId('c', choices.map((c) => c.id)), html: '', correct: false }] };
 }
 
 export const removeChoice = (it: Interaction, choiceId: string): Interaction => ({

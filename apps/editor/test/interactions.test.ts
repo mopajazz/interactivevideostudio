@@ -82,6 +82,55 @@ describe('addInteraction', () => {
   });
 });
 
+describe('random ids (Ruling 24)', () => {
+  const CHECKPOINT = /^i[0-9a-z]{8}$/;
+  const CHOICE = /^c[0-9a-z]{8}$/;
+
+  it('new checkpoints get random ids: "i" and 8 base-36 characters, unique over many adds', () => {
+    let p = video();
+    for (let n = 0; n < 300; n++) p = addInteraction(p, 'text', n % 200);
+    const ids = p.interactions.map((i) => i.id);
+    expect(ids.every((id) => CHECKPOINT.test(id))).toBe(true);
+    expect(new Set(ids).size).toBe(300);
+    expect(validateProject(p).ok).toBe(true);
+  });
+
+  it('after deleting the last checkpoint, the next one gets a different id', () => {
+    let p = addInteraction(addInteraction(video(), 'text', 1), 'multipleChoice', 2);
+    const last = p.interactions[1]!.id;
+    p = removeInteraction(p, last);
+    p = addInteraction(p, 'multipleChoice', 2);
+    expect(p.interactions[1]!.id).not.toBe(last);
+    // The same holds for a question's choices.
+    let q = addChoice(only(addInteraction(video(), 'multipleChoice', 1)));
+    const gone = q.choices!.at(-1)!.id;
+    q = addChoice(removeChoice(q, gone));
+    expect(q.choices!.at(-1)!.id).not.toBe(gone);
+  });
+
+  it('new multiple-choice choices get random ids "c" and 8 base-36 characters; true/false keeps fixed true and false', () => {
+    const mc = addChoice(addChoice(only(addInteraction(video(), 'multipleChoice', 1))));
+    expect(mc.choices!.every((c) => CHOICE.test(c.id))).toBe(true);
+    expect(new Set(mc.choices!.map((c) => c.id)).size).toBe(4);
+    const other = only(addInteraction(video(), 'multipleChoice', 1));
+    expect(other.choices!.map((c) => c.id)).not.toEqual(mc.choices!.slice(0, 2).map((c) => c.id));
+    expect(only(addInteraction(video(), 'trueFalse', 1)).choices!.map((c) => c.id)).toEqual(['true', 'false']);
+  });
+
+  it('existing ids are never changed by adding, editing or moving', () => {
+    const imported: Project = {
+      ...video(),
+      interactions: [{ id: 'i1', type: 'multipleChoice', time: 3, order: 1, promptHtml: '', choices: [{ id: 'c1', html: 'A', correct: true }, { id: 'c2', html: 'B', correct: false }] }],
+    };
+    let p = addInteraction(imported, 'text', 5);
+    p = updateInteraction(p, 'i1', (it) => addChoice(it));
+    p = moveInteraction(p, 'i1', 9);
+    expect(p.interactions[0]!.id).toBe('i1');
+    expect(p.interactions[0]!.choices!.slice(0, 2).map((c) => c.id)).toEqual(['c1', 'c2']);
+    expect(p.interactions[0]!.choices![2]!.id).toMatch(CHOICE);
+  });
+});
+
 describe('updateInteraction, moveInteraction, removeInteraction', () => {
   const base = () => addInteraction(addInteraction(video(212), 'text', 5), 'link', 9);
 
