@@ -6,6 +6,7 @@ import { Setup } from './steps/Setup';
 import { isBlank, isSetupComplete, newProject } from './project';
 import { discardCorruptBackup, loadCorruptBackup, type Step } from './storage/projectStore';
 import { usePersistence, type LoadIssue } from './storage/usePersistence';
+import { watchOtherTabs } from './storage/tabs';
 import { downloadBlob } from './ui/download';
 import { ProjectMenu } from './ui/ProjectMenu';
 import { ConfirmDialog } from './ui/ConfirmDialog';
@@ -38,6 +39,16 @@ export function App({ fetchVideoInfo, adapters = youTubeAdapters }: { fetchVideo
   // Where focus goes after the next render: the new step's heading, or back to a trigger. Applied only once no
   // dialog is open, because a modal dialog makes the rest of the page inert.
   const focusAfter = useRef<'heading' | HTMLElement | null>(null);
+  // Another editor tab on this browser would autosave over this one's work (and the other way round): warn.
+  const [otherTab, setOtherTab] = useState(false);
+  useEffect(() => {
+    const stop = watchOtherTabs(setOtherTab);
+    window.addEventListener('pagehide', stop);
+    return () => {
+      window.removeEventListener('pagehide', stop);
+      stop();
+    };
+  }, []);
   const returnFocus = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -149,6 +160,10 @@ export function App({ fetchVideoInfo, adapters = youTubeAdapters }: { fetchVideo
       <StepIndicator current={shown} unlocked={unlocked} onGo={go} />
       {/* Always rendered (never display:none), so messages inserted later are announced. */}
       <div role="status" data-testid="notice" className={`notice${notice ? ` notice-${notice.tone}` : ''}`}>{notice?.text}</div>
+      {/* Always rendered, so the warning is announced when another tab opens. A warning, not a lock. */}
+      <div role="alert" className="tab-warning" data-testid="tab-warning">
+        {otherTab && 'This project is also open in another tab. Each tab saves its own copy, so changes made in one can overwrite the other\'s. Close the other tab, or work in just one.'}
+      </div>
       {hasBackup && (
         <section className="recovery" aria-label="Damaged project data">
           <p>Damaged project data from an earlier session is kept in this browser.</p>

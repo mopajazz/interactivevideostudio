@@ -73,6 +73,19 @@ body {
 .project-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .save-status { margin: 0; font-size: 0.875rem; color: var(--c-ink-muted); }
 .save-status.is-error, .save-status.is-unavailable { color: var(--c-error-ink); font-weight: 700; }
+/* The live region stays rendered (empty once dismissed); never display:none. */
+.storage-note { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; flex-basis: 100%; justify-content: flex-end; }
+.storage-note-text { margin: 0; font-size: 0.875rem; color: var(--c-ink); }
+.storage-note:not(.is-shown) { gap: 0; }
+.tab-warning:not(:empty) {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--c-error-ink);
+  border-radius: var(--radius-control);
+  background: var(--c-error-bg);
+  color: var(--c-error-ink);
+  font-weight: 600;
+}
 
 .recovery {
   display: flex;

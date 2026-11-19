@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Project } from '@ivt/schema';
 import { fileSlug } from '../project';
 import { exportProjectJson, importProjectJson } from '../storage/projectJson';
@@ -15,6 +15,43 @@ const PROBLEM_TEXT: Partial<Record<SaveStatus, string>> = {
 };
 
 export const IMAGE_ERROR = "Couldn't save an image. Retrying…";
+export const STORAGE_NOTE = 'Your work is saved only in this browser. Export a project file now and then.';
+const NOTE_DISMISSED = 'ivt-storage-note-dismissed';
+
+const readDismissed = () => {
+  try {
+    return sessionStorage.getItem(NOTE_DISMISSED) === '1';
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * A standing reminder that the project lives only in this browser, dismissible for the session. Its live region is
+ * always rendered (never display:none); the text is put in after the page loads, so screen readers announce it.
+ */
+function StorageNote() {
+  const [shown, setShown] = useState(false);
+  useEffect(() => { if (!readDismissed()) setShown(true); }, []);
+  const dismiss = () => {
+    setShown(false);
+    try {
+      sessionStorage.setItem(NOTE_DISMISSED, '1');
+    } catch {
+      /* dismissed for this page only */
+    }
+  };
+  return (
+    <div className={`storage-note${shown ? ' is-shown' : ''}`}>
+      <p role="status" data-testid="storage-note" className="storage-note-text">{shown ? STORAGE_NOTE : ''}</p>
+      {shown && (
+        <button type="button" className="btn btn-secondary btn-small" aria-label="Dismiss the note about saving in this browser" onClick={dismiss}>
+          Dismiss
+        </button>
+      )}
+    </div>
+  );
+}
 
 type Props = {
   project: Project;
@@ -65,6 +102,7 @@ export function ProjectMenu({ project, assets, saveStatus, imageError, assetsPen
         <span data-testid="save-status">{imageError ? '' : QUIET_TEXT[saveStatus]}</span>
         <span role="status">{[PROBLEM_TEXT[saveStatus], imageError && IMAGE_ERROR].filter(Boolean).join(' ')}</span>
       </p>
+      <StorageNote />
       <div className="project-actions">
         <button type="button" className="btn btn-secondary btn-small" onClick={() => fileInput.current?.click()}>
           <IconUpload />Import JSON

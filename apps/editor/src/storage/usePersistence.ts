@@ -4,6 +4,7 @@ import { newProject, isSetupComplete } from '../project';
 import { createAssetQueue, type AssetQueueState } from './assetQueue';
 import { createAutosave } from './autosave';
 import { deleteAsset, loadSession, putAsset, replaceProject, saveProject, saveStep, type Step } from './projectStore';
+import { createPersistRequest } from './tabs';
 
 /** 'unavailable': IndexedDB failed at startup, so nothing is saved; everything else keeps working in memory. */
 export type SaveStatus = 'saved' | 'saving' | 'error' | 'unavailable';
@@ -29,16 +30,21 @@ export function usePersistence() {
   // save does not hide it) and is retried with every autosave until it gets through.
   const [images, setImages] = useState<AssetQueueState>({ pending: false, failed: false });
   const assetQueue = useMemo(() => createAssetQueue({ put: putAsset, del: deleteAsset }, setImages), []);
+  // On the first save, ask the browser to keep this site's storage (once; a refusal is ignored).
+  const askPersist = useMemo(() => createPersistRequest(), []);
 
   const autosave = useMemo(
     () =>
       createAutosave<{ snap: Snapshot; n: number }>(({ snap, n }) => {
         assetQueue.flush().then(() => Promise.all([saveProject(snap.project), saveStep(snap.step)])).then(
-          () => { if (changes.current === n) setStatus('saved'); },
+          () => {
+            askPersist();
+            if (changes.current === n) setStatus('saved');
+          },
           () => setStatus('error'),
         );
       }),
-    [assetQueue],
+    [assetQueue, askPersist],
   );
 
   useEffect(() => {
