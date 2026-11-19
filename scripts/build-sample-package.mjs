@@ -45,7 +45,9 @@ const sources = ['player', 'scorm', 'schema'].map((n) => join(root, 'packages', 
 const stale = bundles.some((b) => !existsSync(b)) || Math.max(...sources.map(newest)) > Math.min(...bundles.map((b) => statSync(b).mtimeMs));
 if (stale) {
   console.log('Building the learner bundles...');
-  execFileSync('pnpm', ['--silent', '--filter', 'editor', 'bundles'], { cwd: root, stdio: 'inherit' });
+  // On Windows pnpm is pnpm.cmd, which Node only runs through a shell.
+  const win = process.platform === 'win32';
+  execFileSync(win ? 'pnpm.cmd' : 'pnpm', ['--silent', '--filter', 'editor', 'bundles'], { cwd: root, stdio: 'inherit', shell: win });
 }
 
 // 2. Compile the editor's TypeScript (import + export code) to one Node module. `?raw` imports become strings, as in Vite.

@@ -3,4 +3,4 @@ dist
 .superpowers/
 test-results
 playwright-report
-out
+/out
