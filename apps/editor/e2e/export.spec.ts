@@ -14,6 +14,11 @@ const toStep3 = async (page: Page) => {
 const mastery = (page: Page) => page.getByRole('textbox', { name: 'Mastery score (%)' });
 const scrubSwitch = (page: Page) => page.getByRole('switch', { name: 'Disable forward scrubbing' });
 const exportButton = (page: Page) => page.getByRole('button', { name: 'Export SCORM package' });
+const retrySwitch = (page: Page) => page.getByRole('switch', { name: 'Let learners try a question again' });
+const solutionSwitch = (page: Page) => page.getByRole('switch', { name: 'Show the correct answer after checking' });
+const captionsBox = (page: Page) => page.getByRole('checkbox', { name: "I've checked that this video has captions" });
+const DOWNLOADED = 'Downloaded photosynthesis-basics.zip. Upload it to your LMS as a SCORM 1.2 package.';
+const REMINDER = 'Reminder: confirm your video has captions.';
 const blockerList = (page: Page) => page.getByRole('list', { name: 'Fix before exporting' });
 const stored = (page: Page) => withStore(page, (s) => s.loadProject()) as Promise<Project | null>;
 
@@ -87,10 +92,80 @@ test.describe('Step 3', () => {
     await expect(scrubSwitch(page)).toHaveAttribute('aria-checked', 'false');
   });
 
+  test('retry and show-solution switches: defaults, keyboard, explanations, persistence and the summary', async ({ page }) => {
+    await tool(page, 'Quiz').click();
+    await toStep3(page);
+    const summary = page.getByRole('region', { name: 'Summary' });
+    // Defaults: one try, the correct answer shown.
+    await expect(retrySwitch(page)).toHaveAttribute('aria-checked', 'false');
+    await expect(solutionSwitch(page)).toHaveAttribute('aria-checked', 'true');
+    await expect(retrySwitch(page)).toHaveAccessibleDescription('After a wrong answer, learners can choose again. The last answer they check is the one scored.');
+    await expect(solutionSwitch(page)).toHaveAccessibleDescription('After checking, the card marks the correct answer. With "try again" on, it shows only once the learner gets it right.');
+    await expect(summary).toContainText('Learners get one try at each question, and then see the correct answer.');
+    // Both switches sit in the Scoring section.
+    const scoring = page.getByRole('region', { name: 'Scoring' });
+    await expect(scoring.getByRole('switch')).toHaveCount(3);
+
+    await retrySwitch(page).focus();
+    await page.keyboard.press('Space');
+    await expect(retrySwitch(page)).toHaveAttribute('aria-checked', 'true');
+    await solutionSwitch(page).focus();
+    await page.keyboard.press('Enter');
+    await expect(solutionSwitch(page)).toHaveAttribute('aria-checked', 'false');
+    await expect(summary).toContainText('Learners can try a question again after a wrong answer, and are not shown the correct answer.');
+    await saved(page);
+    expect((await stored(page))!.settings).toMatchObject({ allowRetry: true, showSolution: false });
+
+    await page.reload();
+    await expect(heading(page)).toBeVisible();
+    await expect(retrySwitch(page)).toHaveAttribute('aria-checked', 'true');
+    await expect(solutionSwitch(page)).toHaveAttribute('aria-checked', 'false');
+    await solutionSwitch(page).click();
+    await expect(summary).toContainText('Learners can try a question again after a wrong answer, and see the correct answer once they get it right.');
+  });
+
+  test('an untouched project stores none of the new settings (the defaults are not written)', async ({ page }) => {
+    await tool(page, 'Quiz').click();
+    await toStep3(page);
+    await saved(page);
+    expect((await stored(page))!.settings).toEqual({ disableForwardScrubbing: false, masteryPercent: 80 });
+  });
+
+  test('the captions reminder: a labelled checkbox that persists and never blocks Export', async ({ page }) => {
+    await tool(page, 'Quiz').click();
+    await toStep3(page);
+    const group = page.getByRole('group', { name: 'Before you export' });
+    await expect(group).toBeVisible();
+    await expect(captionsBox(page)).not.toBeChecked();
+    await expect(captionsBox(page)).toHaveAccessibleDescription(
+      "Captions come from the video's owner on YouTube; this tool can't check them. Learners who are deaf or hard of hearing need them. This is a reminder only: it never blocks export.",
+    );
+    // Unticked, export is still ready.
+    await expect(page.getByText('Ready to export.')).toBeVisible();
+    await expect(exportButton(page)).not.toHaveAttribute('aria-disabled', 'true');
+    let download = page.waitForEvent('download');
+    await exportButton(page).click();
+    await download;
+    await expect(page.getByTestId('notice')).toHaveText(`${DOWNLOADED} ${REMINDER}`);
+
+    await captionsBox(page).focus();
+    await page.keyboard.press('Space');
+    await expect(captionsBox(page)).toBeChecked();
+    await saved(page);
+    expect((await stored(page))!.settings.captionsConfirmed).toBe(true);
+    await page.reload();
+    await expect(heading(page)).toBeVisible();
+    await expect(captionsBox(page)).toBeChecked();
+    download = page.waitForEvent('download');
+    await exportButton(page).click();
+    await download;
+    await expect(page.getByTestId('notice')).toHaveText(DOWNLOADED);
+  });
+
   test('controls are at least 44 px tall', async ({ page }) => {
     await tool(page, 'Quiz').click();
     await toStep3(page);
-    for (const el of [mastery(page), scrubSwitch(page), exportButton(page)]) {
+    for (const el of [mastery(page), scrubSwitch(page), retrySwitch(page), solutionSwitch(page), captionsBox(page).locator('..'), exportButton(page)]) {
       // Layout size, so the panel's entrance animation can't blur it by a subpixel.
       expect(await el.evaluate((e) => (e as HTMLElement).offsetHeight)).toBeGreaterThanOrEqual(44);
     }
@@ -179,9 +254,8 @@ test.describe('Step 3', () => {
     await exportButton(page).click();
     const file = await download;
     expect(file.suggestedFilename()).toBe('photosynthesis-basics.zip');
-    await expect(page.getByTestId('notice')).toHaveText(
-      'Downloaded photosynthesis-basics.zip. Upload it to your LMS as a SCORM 1.2 package.',
-    );
+    // The captions box was left unticked, so the notice repeats the reminder once.
+    await expect(page.getByTestId('notice')).toHaveText(`${DOWNLOADED} ${REMINDER}`);
     const path = info.outputPath('package.zip');
     await file.saveAs(path);
     const zip = await JSZip.loadAsync(await readFile(path));

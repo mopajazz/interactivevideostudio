@@ -157,6 +157,39 @@ for (const mode of MODES) {
       await expectNoAxeViolations(page);
     });
 
+    test('Step 3: the retry, show-solution and captions controls, each away from its default', async ({ page }) => {
+      await openInteractions(page);
+      await addAt(page, 'Quiz', 10);
+      await toStep3(page);
+      await page.getByRole('switch', { name: 'Let learners try a question again' }).click();
+      await page.getByRole('switch', { name: 'Show the correct answer after checking' }).click();
+      await page.getByRole('checkbox', { name: "I've checked that this video has captions" }).check();
+      await expect(page.getByRole('switch', { name: 'Show the correct answer after checking' })).toHaveAttribute('aria-checked', 'false');
+      await expectNoAxeViolations(page);
+    });
+
+    test('Step 2: preview with "Try again" showing, then with the solution revealed', async ({ page }) => {
+      await openInteractions(page);
+      await addAt(page, 'True/False', 5);
+      await page.keyboard.type('Leaves are green.');
+      await toStep3(page);
+      await page.getByRole('switch', { name: 'Let learners try a question again' }).click();
+      await page.getByRole('button', { name: 'Back: Interactions' }).click();
+      await previewButton(page).click();
+      await preview(page).getByRole('button', { name: 'Play', exact: true }).click();
+      await fake(page, 'advance(6)');
+      const card = preview(page).getByRole('dialog', { name: 'True or false' });
+      await card.getByRole('radio', { name: 'False' }).check();
+      await card.getByRole('button', { name: 'Check answer' }).click();
+      await expect(card.getByRole('button', { name: 'Try again' })).toBeVisible();
+      await expectNoAxeViolations(page);
+      await card.getByRole('button', { name: 'Try again' }).click();
+      await card.getByRole('radio', { name: 'True' }).check();
+      await card.getByRole('button', { name: 'Check answer' }).click();
+      await expect(card.locator('.ivp-solution-mark')).toHaveText('Correct answer');
+      await expectNoAxeViolations(page);
+    });
+
     test('Step 3: with an invalid mastery score', async ({ page }) => {
       await openInteractions(page);
       await addAt(page, 'Quiz', 10);
@@ -288,6 +321,14 @@ test('keyboard only: link, title, a quiz question, its time, mastery and Export'
   await tabTo(page, mastery(page));
   await page.keyboard.type('70');
   await expect(mastery(page)).toHaveValue('70');
+  const retry = page.getByRole('switch', { name: 'Let learners try a question again' });
+  await tabTo(page, retry);
+  await page.keyboard.press('Space');
+  await expect(retry).toHaveAttribute('aria-checked', 'true');
+  const captions = page.getByRole('checkbox', { name: "I've checked that this video has captions" });
+  await tabTo(page, captions);
+  await page.keyboard.press('Space');
+  await expect(captions).toBeChecked();
   await tabTo(page, exportButton(page));
   const download = page.waitForEvent('download');
   await page.keyboard.press('Enter');
@@ -296,7 +337,7 @@ test('keyboard only: link, title, a quiz question, its time, mastery and Export'
   await expect(exportButton(page)).toBeFocused();
   const zip = await JSZip.loadAsync(await readFile(await file.path()));
   const project = JSON.parse(await zip.file('project.json')!.async('string')) as Project;
-  expect(project.settings.masteryPercent).toBe(70);
+  expect(project.settings).toMatchObject({ masteryPercent: 70, allowRetry: true, captionsConfirmed: true });
   expect(project.interactions).toMatchObject([{
     type: 'multipleChoice', time: 30, promptHtml: '<p>What do leaves need?</p>',
     choices: [{ html: 'Sunlight', correct: true }, { html: 'Water', correct: true }],

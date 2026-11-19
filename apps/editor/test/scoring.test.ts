@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Interaction, Project } from '@ivt/schema';
-import { MASTERY_ERROR, parseMastery, scoringSummary } from '../src/scoring';
+import { MASTERY_ERROR, parseMastery, questionRulesSummary, scoringSummary } from '../src/scoring';
 
 describe('parseMastery', () => {
   it.each([['0', 0], ['80', 80], ['100', 100], [' 75 ', 75], ['007', 7]])('accepts %j as %d', (text, n) => {
@@ -30,5 +30,18 @@ describe('scoringSummary', () => {
 
   it('is all zeros for an empty project', () => {
     expect(scoringSummary(project([]))).toEqual({ questions: 0, cards: 0, points: 0 });
+  });
+});
+
+describe('questionRulesSummary', () => {
+  const rules = (allowRetry: boolean, showSolution: boolean) => questionRulesSummary({ allowRetry, showSolution });
+
+  it.each([
+    [false, true, 'Learners get one try at each question, and then see the correct answer.'],
+    [false, false, 'Learners get one try at each question and are not shown the correct answer.'],
+    [true, true, 'Learners can try a question again after a wrong answer, and see the correct answer once they get it right.'],
+    [true, false, 'Learners can try a question again after a wrong answer, and are not shown the correct answer.'],
+  ])('retry %s, solution %s: %j', (retry, solution, text) => {
+    expect(rules(retry, solution)).toBe(text);
   });
 });

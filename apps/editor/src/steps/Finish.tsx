@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import type { Project } from '@ivt/schema';
+import { resolveSettings, type Project } from '@ivt/schema';
 import { listBlockers, type Blocker, type PendingImages } from '../export/blockers';
 import { checkpointName } from '../interactions';
-import { MASTERY_ERROR, parseMastery, scoringSummary } from '../scoring';
+import { MASTERY_ERROR, parseMastery, questionRulesSummary, scoringSummary } from '../scoring';
 import type { Step } from '../storage/projectStore';
 import { downloadBlob } from '../ui/download';
 import { IconAlert, IconArrowLeft, IconArrowRight, IconCheck, IconDownload, IconSpinner } from '../ui/icons';
@@ -20,13 +20,32 @@ type Props = {
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-/** Step 3: the mastery threshold, the scrubbing switch, a summary of what is scored, and the SCORM export. */
+const CAPTIONS_REMINDER = 'Reminder: confirm your video has captions.';
+
+/** A real button with role="switch" (Space and Enter work), its state shown by the thumb and On/Off, and a hint. */
+function Switch({ id, label, hint, checked, onToggle }: { id: string; label: string; hint: string; checked: boolean; onToggle: () => void }) {
+  return (
+    <div className="switch-field">
+      <button type="button" role="switch" className="switch" aria-checked={checked} aria-describedby={`${id}-hint`} onClick={onToggle}>
+        <span className="switch-track" aria-hidden="true"><span className="switch-thumb" /></span>
+        <span className="switch-label">{label}</span>
+        <span className="switch-state" aria-hidden="true">{checked ? 'On' : 'Off'}</span>
+      </button>
+      <p id={`${id}-hint`} className="field-hint">{hint}</p>
+    </div>
+  );
+}
+
+/**
+ * Step 3: the mastery threshold, the scrubbing, retry and show-solution switches, a summary of what is scored, the
+ * captions reminder (never a blocker) and the SCORM export.
+ */
 export function Finish({ project, onChange, assets, assetQueue, onGo, onGoToCheckpoint, onNotice }: Props) {
   const [masteryText, setMasteryText] = useState(String(project.settings.masteryPercent));
   const [busy, setBusy] = useState(false);
   const masteryValid = parseMastery(masteryText) !== null;
   const { questions, cards, points } = scoringSummary(project);
-  const { masteryPercent, disableForwardScrubbing } = project.settings;
+  const { masteryPercent, disableForwardScrubbing, allowRetry, showSolution, captionsConfirmed } = resolveSettings(project.settings);
   const toPass = Math.ceil((masteryPercent * points) / 100);
 
   const blockers: Blocker[] = [
@@ -53,7 +72,8 @@ export function Finish({ project, onChange, assets, assetQueue, onGo, onGoToChec
       const r = await runExport(project, assets, { queue: assetQueue });
       if (r.ok) {
         downloadBlob(r.blob, r.filename);
-        onNotice({ tone: 'ok', text: `Downloaded ${r.filename}. Upload it to your LMS as a SCORM 1.2 package.` });
+        const done = `Downloaded ${r.filename}. Upload it to your LMS as a SCORM 1.2 package.`;
+        onNotice({ tone: 'ok', text: captionsConfirmed ? done : `${done} ${CAPTIONS_REMINDER}` });
       } else {
         onNotice({ tone: 'error', text: `Couldn't export yet. ${r.blockers.map((b) => b.message).join(' ')}` });
       }
@@ -96,21 +116,27 @@ export function Finish({ project, onChange, assets, assetQueue, onGo, onGoToChec
           </p>
         </div>
 
-        <div className="switch-field">
-          <button
-            type="button"
-            role="switch"
-            className="switch"
-            aria-checked={disableForwardScrubbing}
-            aria-describedby="scrub-hint"
-            onClick={() => setSetting({ disableForwardScrubbing: !disableForwardScrubbing })}
-          >
-            <span className="switch-track" aria-hidden="true"><span className="switch-thumb" /></span>
-            <span className="switch-label">Disable forward scrubbing</span>
-            <span className="switch-state" aria-hidden="true">{disableForwardScrubbing ? 'On' : 'Off'}</span>
-          </button>
-          <p id="scrub-hint" className="field-hint">Learners can't skip ahead of what they've watched.</p>
-        </div>
+        <Switch
+          id="scrub"
+          label="Disable forward scrubbing"
+          hint="Learners can't skip ahead of what they've watched."
+          checked={disableForwardScrubbing}
+          onToggle={() => setSetting({ disableForwardScrubbing: !disableForwardScrubbing })}
+        />
+        <Switch
+          id="retry"
+          label="Let learners try a question again"
+          hint="After a wrong answer, learners can choose again. The last answer they check is the one scored."
+          checked={allowRetry}
+          onToggle={() => setSetting({ allowRetry: !allowRetry })}
+        />
+        <Switch
+          id="solution"
+          label="Show the correct answer after checking"
+          hint={'After checking, the card marks the correct answer. With "try again" on, it shows only once the learner gets it right.'}
+          checked={showSolution}
+          onToggle={() => setSetting({ showSolution: !showSolution })}
+        />
       </section>
 
       <section className="finish-section" aria-labelledby="summary-heading">
@@ -125,10 +151,28 @@ export function Finish({ project, onChange, assets, assetQueue, onGo, onGoToChec
             ? 'Learners see "Finish" instead of "Submit answers", and the LMS records the video as completed.'
             : `Learners pass with ${masteryPercent}% or more: at least ${plural(toPass, 'point', 'points')} of ${points}. The LMS records passed or failed with the score.`}
         </p>
+        {questions > 0 && <p className="summary-note">{questionRulesSummary({ allowRetry, showSolution })}</p>}
       </section>
 
       <section className="finish-section" aria-labelledby="export-heading">
         <h3 id="export-heading" className="section-title">Export</h3>
+        {/* A reminder, not a blocker: nothing here changes what the export needs. */}
+        <fieldset className="reminder">
+          <legend className="field-label">Before you export</legend>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={captionsConfirmed}
+              aria-describedby="captions-hint"
+              onChange={(e) => setSetting({ captionsConfirmed: e.target.checked })}
+            />
+            I've checked that this video has captions
+          </label>
+          <p id="captions-hint" className="field-hint">
+            Captions come from the video's owner on YouTube; this tool can't check them. Learners who are deaf or hard of
+            hearing need them. This is a reminder only: it never blocks export.
+          </p>
+        </fieldset>
         {/* One always-rendered polite live region (never remounted or display:none), so a change in what blocks
             the export is announced. */}
         <p id="export-reason" role="status" className={`msg ${blocked ? 'msg-error' : 'msg-ok'}`}>

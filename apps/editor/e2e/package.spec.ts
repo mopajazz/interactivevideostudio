@@ -34,12 +34,21 @@ test('an exported package unzips, loads in a fake LMS and starts the player with
   await drawer(page).getByLabel('Image file').setInputFiles(PNG);
   await drawer(page).getByLabel('Alt text').fill('A green leaf');
   await page.getByRole('button', { name: 'Next: Scoring & export' }).click();
+  // Every new setting away from its default, so the package must carry what the author chose.
+  await page.getByRole('checkbox', { name: "I've checked that this video has captions" }).check();
+  await page.getByRole('switch', { name: 'Let learners try a question again' }).click();
+  await page.getByRole('switch', { name: 'Show the correct answer after checking' }).click();
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Export SCORM package' }).click();
   const zip = await JSZip.loadAsync(await readFile(await (await download).path()));
 
   // Exactly the package files, plus one asset per image.
   const project = JSON.parse(await zip.file('project.json')!.async('string'));
+  const settings = { disableForwardScrubbing: false, masteryPercent: 80, captionsConfirmed: true, allowRetry: true, showSolution: false };
+  expect(project.settings).toEqual(settings);
+  // The launch page's inlined copy (what the player actually reads) carries them too.
+  const inlined = (await zip.file('index.html')!.async('string')).match(/<script type="application\/json" id="ivt-project">(.*?)<\/script>/s)![1]!;
+  expect(JSON.parse(inlined).settings).toEqual(settings);
   const assetId: string = project.interactions.find((i: { type: string }) => i.type === 'image').imageAssetId;
   const names = Object.keys(zip.files).filter((n) => !zip.files[n]!.dir).sort();
   expect(names).toEqual(['assets/' + assetId, 'imsmanifest.xml', 'index.html', 'launch.js', 'player.css', 'player.js', 'project.json'].sort());

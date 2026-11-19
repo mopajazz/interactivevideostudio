@@ -1,4 +1,4 @@
-import type { Project } from '@ivt/schema';
+import type { Project, ResolvedSettings } from '@ivt/schema';
 
 export const MASTERY_ERROR = 'Enter a whole number from 0 to 100.';
 
@@ -16,4 +16,17 @@ export const isScored = (type: string) => type === 'multipleChoice' || type === 
 export function scoringSummary(p: Project) {
   const questions = p.interactions.filter((i) => isScored(i.type)).length;
   return { questions, cards: p.interactions.length - questions, points: questions };
+}
+
+/** The per-question rules in plain words, for the Step 3 summary. */
+export function questionRulesSummary({ allowRetry, showSolution }: Pick<ResolvedSettings, 'allowRetry' | 'showSolution'>): string {
+  if (!allowRetry) {
+    return showSolution
+      ? 'Learners get one try at each question, and then see the correct answer.'
+      : 'Learners get one try at each question and are not shown the correct answer.';
+  }
+  // With retry on, the player reveals the answer only after a correct check (see packages/player/src/ui/card.ts).
+  return showSolution
+    ? 'Learners can try a question again after a wrong answer, and see the correct answer once they get it right.'
+    : 'Learners can try a question again after a wrong answer, and are not shown the correct answer.';
 }
